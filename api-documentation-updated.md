@@ -206,6 +206,7 @@
   "positionType": "long|short|both",
   "buyFee": 0.001,
   "sellFee": 0.001,
+  "liquidationThreshold": 90,
   "indicators": [
     {
       "indicatorId": 1,
@@ -247,6 +248,7 @@
     "positionType": "both",
     "buyFee": 0.001,
     "sellFee": 0.001,
+    "liquidationThreshold": 90,
     "createdAt": "2025-08-22T11:00:00.000Z",
     "updatedAt": "2025-08-22T11:00:00.000Z"
   },

@@ -20,6 +20,9 @@ export class Strategy {
   @Column({ name: 'sell_fee', type: 'decimal', precision: 10, scale: 6, default: 0 })
   sellFee: number;
 
+  @Column({ name: 'liquidation_threshold', type: 'decimal', precision: 10, scale: 2, default: 90 })
+  liquidationThreshold: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

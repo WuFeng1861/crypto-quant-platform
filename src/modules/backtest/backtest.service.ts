@@ -148,6 +148,24 @@ export class BacktestService {
       const candle = priceData[i];
       const timestamp = new Date(candle.timestamp);
       const prevCandle = priceData[i - 1];
+      
+      // 检查是否爆仓
+      const liquidationResult = this.checkAndHandleLiquidation(
+        position, 
+        balance, 
+        entryPrice, 
+        candle.close_price, 
+        timestamp, 
+        strategy, 
+        trades
+      );
+      
+      if (liquidationResult.liquidated) {
+        position = liquidationResult.position;
+        balance = liquidationResult.balance;
+        losingTrades++;
+        continue;
+      }
 
       // 检查条件并生成信号
       let buySignal = false;
@@ -497,5 +515,72 @@ export class BacktestService {
 
   async getBacktestFromRedis(backtestId: number): Promise<any> {
     return this.redisService.get(`backtest:${backtestId}`);
+  }
+  
+  /**
+   * 检查并处理爆仓情况
+   * @param position 当前持仓
+   * @param balance 当前余额
+   * @param entryPrice 开仓价格
+   * @param currentPrice 当前价格
+   * @param timestamp 当前时间戳
+   * @param strategy 策略信息
+   * @param trades 交易记录数组
+   * @returns 处理结果，包含是否爆仓、更新后的持仓和余额
+   */
+  private checkAndHandleLiquidation(
+    position: number,
+    balance: number,
+    entryPrice: number,
+    currentPrice: number,
+    timestamp: Date,
+    strategy: any,
+    trades: any[]
+  ): { liquidated: boolean; position: number; balance: number } {
+    // 默认返回值：未爆仓，持仓和余额保持不变
+    const result = { liquidated: false, position, balance };
+    
+    // 只检查空仓的爆仓情况
+    if (position < 0) {
+      // 计算当前浮动亏损
+      const entryValue = Math.abs(position) * entryPrice;
+      const currentValue = Math.abs(position) * currentPrice;
+      const unrealizedLoss = entryValue - currentValue;
+      
+      // 获取策略的爆仓阈值（默认为90%）
+      const liquidationThreshold = strategy.liquidationThreshold || 90;
+      const liquidationThresholdDecimal = liquidationThreshold / 100;
+      
+      // 如果浮动亏损超过账户余额的阈值，触发爆仓
+      if (unrealizedLoss > balance * liquidationThresholdDecimal) {
+        // 计算爆仓后的实际余额
+        // 1. 计算平仓时的手续费
+        const liquidationFee = Math.abs(position) * currentPrice * strategy.buyFee;
+        
+        // 2. 计算平仓后的余额 = 当前余额 - 浮动亏损 - 平仓手续费
+        const remainingBalance = Math.max(0, balance - unrealizedLoss - liquidationFee);
+        
+        // 记录爆仓交易
+        trades.push({
+          backtestId: null,
+          timestamp,
+          tradeType: 'liquidation',
+          price: currentPrice,
+          amount: Math.abs(position),
+          fee: liquidationFee,
+          profit: -(unrealizedLoss + liquidationFee), // 爆仓损失 = 浮动亏损 + 平仓手续费
+          profitRate: -(unrealizedLoss + liquidationFee) / balance * 100,
+          balance: remainingBalance,
+          signalIndicatorId: null,
+        });
+        
+        // 更新结果：已爆仓，持仓清零，余额为剩余金额
+        result.liquidated = true;
+        result.position = 0;
+        result.balance = remainingBalance;
+      }
+    }
+    
+    return result;
   }
 }

@@ -185,6 +185,7 @@ curl -X POST http://localhost:3099/strategies \
     "positionType": "both",
     "buyFee": 0.001,
     "sellFee": 0.001,
+    "liquidationThreshold": 90,
     "indicators": [
       {
         "indicatorId": 1,
