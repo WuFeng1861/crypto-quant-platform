@@ -150,6 +150,12 @@ export class BacktestService {
       const timestamp = new Date(candle.timestamp);
       const prevCandle = priceData[i - 1];
       
+      // 检查资金是否已经低于初始资金的10%且没有持仓，如果是则提前结束回测
+      if (balance.isLessThan(new BigNumber(initialCapital).multipliedBy(0.1)) && position.isZero()) {
+        console.log(`回测提前结束: 资金已低于初始资金的10%，当前资金: ${balance.toNumber()}, 初始资金: ${initialCapital}`);
+        break;
+      }
+      
       // 检查是否爆仓
       const liquidationResult = this.checkAndHandleLiquidation(
         position, 
