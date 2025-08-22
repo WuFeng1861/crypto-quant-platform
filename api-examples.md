@@ -434,7 +434,8 @@ curl -X POST http://localhost:3099/backtest \
     "timeframeId": 1,
     "startTime": "2025-01-01T00:00:00.000Z",
     "endTime": "2025-08-01T00:00:00.000Z",
-    "initialCapital": 10000
+    "initialCapital": 10000,
+    "earlyStopThreshold": 10
   }'
 ```
 
@@ -449,14 +450,64 @@ curl -X POST http://localhost:3099/backtest \
     "timeframeId": 1,
     "startTime": "2025-01-01T00:00:00.000Z",
     "endTime": "2025-08-01T00:00:00.000Z",
-    "initialCapital": 10000
+    "initialCapital": 10000,
+    "earlyStopThreshold": 15
   }'
 ```
 
-### 3. 查询回测结果
+### 3. 执行带有自定义提前结束阈值的回测
+
+```bash
+curl -X POST http://localhost:3099/backtest \
+  -H "Content-Type: application/json" \
+  -d '{
+    "strategyId": 3,
+    "pairId": 1,
+    "timeframeId": 1,
+    "startTime": "2025-01-01T00:00:00.000Z",
+    "endTime": "2025-08-01T00:00:00.000Z",
+    "initialCapital": 10000,
+    "earlyStopThreshold": 5
+  }'
+```
+
+### 4. 查询回测结果（包含提前结束信息）
 
 ```bash
 curl -X GET http://localhost:3099/backtest/1
+```
+
+响应示例（提前结束的回测）:
+
+```json
+{
+  "code": 200,
+  "message": "操作成功",
+  "data": {
+    "id": 1,
+    "strategyId": 3,
+    "pairId": 1,
+    "timeframeId": 1,
+    "startTime": "2025-01-01T00:00:00.000Z",
+    "endTime": "2025-08-01T00:00:00.000Z",
+    "initialCapital": 10000,
+    "finalCapital": 450.25,
+    "totalProfit": -9549.75,
+    "profitRate": -95.5,
+    "maxDrawdown": 95.5,
+    "totalTrades": 8,
+    "winningTrades": 2,
+    "losingTrades": 6,
+    "winRate": 25,
+    "sharpeRatio": -2.3,
+    "earlyStopped": true,
+    "earlyStopReason": "资金已低于初始资金的5%",
+    "earlyStopTime": "2025-03-15T14:30:00.000Z",
+    "createdAt": "2025-08-22T11:00:00.000Z",
+    "updatedAt": "2025-08-22T11:00:00.000Z"
+  },
+  "timestamp": 1755860989513
+}
 ```
 
 ### 4. 查询回测交易记录

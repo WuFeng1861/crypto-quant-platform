@@ -417,9 +417,20 @@
   "timeframeId": 1,
   "startTime": "2025-01-01T00:00:00.000Z",
   "endTime": "2025-08-01T00:00:00.000Z",
-  "initialCapital": 10000
+  "initialCapital": 10000,
+  "earlyStopThreshold": 10
 }
 ```
+
+| 参数 | 类型 | 必填 | 描述 |
+|------|------|------|------|
+| strategyId | number | 是 | 策略ID |
+| pairId | number | 是 | 交易对ID |
+| timeframeId | number | 是 | 时间周期ID |
+| startTime | string | 是 | 回测开始时间 |
+| endTime | string | 是 | 回测结束时间 |
+| initialCapital | number | 是 | 初始资金 |
+| earlyStopThreshold | number | 否 | 提前结束阈值，默认为10（表示当资金低于初始资金的10%且无持仓时提前结束回测） |
 
 - **响应**:
 
@@ -444,6 +455,9 @@
     "losingTrades": 5,
     "winRate": 66.67,
     "sharpeRatio": 1.5,
+    "earlyStopped": false,
+    "earlyStopReason": null,
+    "earlyStopTime": null,
     "createdAt": "2025-08-22T11:00:00.000Z",
     "updatedAt": "2025-08-22T11:00:00.000Z"
   },
@@ -480,6 +494,9 @@
       "losingTrades": 5,
       "winRate": 66.67,
       "sharpeRatio": 1.5,
+      "earlyStopped": false,
+      "earlyStopReason": null,
+      "earlyStopTime": null,
       "createdAt": "2025-08-22T11:00:00.000Z",
       "updatedAt": "2025-08-22T11:00:00.000Z"
     }
@@ -517,6 +534,9 @@
     "losingTrades": 5,
     "winRate": 66.67,
     "sharpeRatio": 1.5,
+    "earlyStopped": false,
+    "earlyStopReason": null,
+    "earlyStopTime": null,
     "createdAt": "2025-08-22T11:00:00.000Z",
     "updatedAt": "2025-08-22T11:00:00.000Z"
   },

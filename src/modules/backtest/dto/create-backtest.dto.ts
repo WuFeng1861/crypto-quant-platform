@@ -25,4 +25,9 @@ export class CreateBacktestDto {
   @IsNotEmpty()
   @Min(0)
   initialCapital: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  earlyStopThreshold?: number = 10; // 默认为初始资金的10%
 }

@@ -144,15 +144,35 @@ export class BacktestService {
       indicatorValues[indicator.id] = indicatorResult;
     }
 
+        // 初始化提前结束信息
+    let earlyStopInfo = {
+      earlyStopped: false,
+      earlyStopReason: null,
+      earlyStopTime: null
+    };
+
     // 遍历价格数据
     for (let i = 1; i < priceData.length; i++) {  // 从1开始，因为我们需要前一个时间点的数据
       const candle = priceData[i];
       const timestamp = new Date(candle.timestamp);
       const prevCandle = priceData[i - 1];
+    
+      // 获取提前结束阈值（默认为10%）
+      const earlyStopThreshold = createBacktestDto.earlyStopThreshold || 10;
+      const earlyStopThresholdDecimal = new BigNumber(earlyStopThreshold).dividedBy(100);
       
-      // 检查资金是否已经低于初始资金的10%且没有持仓，如果是则提前结束回测
-      if (balance.isLessThan(new BigNumber(initialCapital).multipliedBy(0.1)) && position.isZero()) {
-        console.log(`回测提前结束: 资金已低于初始资金的10%，当前资金: ${balance.toNumber()}, 初始资金: ${initialCapital}`);
+      // 检查资金是否已经低于初始资金的阈值且没有持仓，如果是则提前结束回测
+      if (balance.isLessThan(new BigNumber(initialCapital).multipliedBy(earlyStopThresholdDecimal)) && position.isZero()) {
+        console.log(`回测提前结束: 资金已低于初始资金的${earlyStopThreshold}%，当前资金: ${balance.toNumber()}, 初始资金: ${initialCapital}`);
+        
+        // 记录提前结束的信息
+        earlyStopInfo = {
+          earlyStopped: true,
+          earlyStopReason: `资金已低于初始资金的${earlyStopThreshold}%`,
+          earlyStopTime: timestamp
+        };
+        
+        // 提前结束回测
         break;
       }
       
@@ -478,6 +498,10 @@ export class BacktestService {
       losingTrades,
       winRate,
       sharpeRatio,
+      // 添加提前结束信息
+      earlyStopped: earlyStopInfo.earlyStopped,
+      earlyStopReason: earlyStopInfo.earlyStopReason,
+      earlyStopTime: earlyStopInfo.earlyStopTime,
     });
 
     const savedResult = await this.backtestResultRepository.save(backtestResult);

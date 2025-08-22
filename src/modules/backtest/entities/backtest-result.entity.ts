@@ -50,6 +50,15 @@ export class BacktestResult {
   @Column({ name: 'sharpe_ratio', type: 'decimal', precision: 10, scale: 4, nullable: true })
   sharpeRatio: number;
 
+  @Column({ name: 'early_stopped', default: false })
+  earlyStopped: boolean;
+
+  @Column({ name: 'early_stop_reason', type: 'varchar', length: 255, nullable: true })
+  earlyStopReason: string;
+
+  @Column({ name: 'early_stop_time', type: 'timestamp', nullable: true })
+  earlyStopTime: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
