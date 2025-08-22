@@ -431,6 +431,7 @@
 | endTime | string | 是 | 回测结束时间 |
 | initialCapital | number | 是 | 初始资金 |
 | earlyStopThreshold | number | 否 | 提前结束阈值，默认为10（表示当资金低于初始资金的10%且无持仓时提前结束回测） |
+| positionDivision | number | 否 | 仓位分配，默认为1（表示全仓交易）；大于1表示将资金平均分为多次使用 |
 
 - **响应**:
 

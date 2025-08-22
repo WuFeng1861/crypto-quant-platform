@@ -296,19 +296,51 @@ export class BacktestService {
       if (buySignal && (position.isLessThanOrEqualTo(0) || strategy.positionType === 'both')) {
         // 买入
         const price = new BigNumber(candle.close_price);
-        const amount = position.isZero() ? 
-          balance.dividedBy(price) : 
-          position.abs();
+        
+        // 获取仓位分配参数（默认为1，表示全仓交易）
+        const positionDivision = createBacktestDto.positionDivision || 1;
+        
+        // 计算交易数量，考虑仓位分配
+        let amount;
+        
+        if (position.isZero()) {
+          // 开仓时按仓位分配
+          amount = balance.dividedBy(price).dividedBy(positionDivision);
+        } else if (position.isLessThan(0)) {
+          // 平空仓时使用全部持仓
+          amount = position.abs();
+        } else {
+          // 加仓逻辑：已有多头仓位且还有余额
+          // 计算当前仓位价值
+          const positionValue = position.multipliedBy(price);
+          // 计算总价值 = 仓位价值 + 余额
+          const totalValue = positionValue.plus(balance);
+          // 计算理想加仓金额
+          const idealAddAmount = totalValue.dividedBy(positionDivision);
+          
+          // 如果余额大于理想加仓金额，则使用理想加仓金额
+          // 否则全部投入
+          const addAmount = balance.isGreaterThan(idealAddAmount) ? 
+            idealAddAmount : 
+            balance;
+            
+          // 计算可以购买的数量
+          amount = addAmount.dividedBy(price);
+        }
+          
         const fee = amount.multipliedBy(price).multipliedBy(strategy.buyFee);
         
         // 更新余额和持仓
         balance = balance.minus(amount.multipliedBy(price).plus(fee));
+        
+        // 保存旧持仓数量，用于判断操作类型
+        const oldPosition = position.toNumber();
         position = position.plus(amount);
         
-        if (position.isEqualTo(amount)) {
+        if (oldPosition === 0) {
           // 开仓
           entryPrice = price;
-        } else {
+        } else if (oldPosition < 0 && position.isGreaterThanOrEqualTo(0)) {
           // 平空仓
           // 计算毛利润
           const grossProfit = entryPrice.minus(price).multipliedBy(position.abs());
@@ -325,22 +357,34 @@ export class BacktestService {
           else losingTrades++;
           
           balance = balance.plus(netProfit);
+        } else if (oldPosition > 0) {
+          // 加仓 - 计算新的平均持仓价格
+          // 计算旧仓位价值
+          const oldPositionValue = new BigNumber(oldPosition).multipliedBy(entryPrice);
+          // 计算新增仓位价值
+          const newPositionValue = amount.multipliedBy(price);
+          // 计算总仓位价值
+          const totalPositionValue = oldPositionValue.plus(newPositionValue);
+          // 计算新的平均持仓价格
+          entryPrice = totalPositionValue.dividedBy(position);
         }
 
         // 记录交易
-        const tradeProfit = position.isEqualTo(amount) ? 
-          null : 
-          entryPrice.minus(price).multipliedBy(position.abs())
-            .minus(position.abs().multipliedBy(entryPrice).multipliedBy(strategy.sellFee))
-            .minus(position.abs().multipliedBy(price).multipliedBy(strategy.buyFee))
+        let tradeProfit = null;
+        let tradeProfitRate = null;
+        
+        // 如果是平空仓，计算利润
+        if (oldPosition < 0 && position.isGreaterThanOrEqualTo(0)) {
+          tradeProfit = entryPrice.minus(price).multipliedBy(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())))
+            .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.sellFee))
+            .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(price).multipliedBy(strategy.buyFee))
             .toNumber();
             
-        const tradeProfitRate = position.isEqualTo(amount) ? 
-          null : 
-          entryPrice.minus(price).dividedBy(entryPrice).multipliedBy(100)
+          tradeProfitRate = entryPrice.minus(price).dividedBy(entryPrice).multipliedBy(100)
             .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
             .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
             .toNumber();
+        }
             
         trades.push({
           backtestId: null, // 稍后填充
@@ -359,19 +403,51 @@ export class BacktestService {
       if (sellSignal && (position.isGreaterThanOrEqualTo(0) || strategy.positionType === 'both')) {
         // 卖出
         const price = new BigNumber(candle.close_price);
-        const amount = position.isZero() ? 
-          balance.dividedBy(price) : 
-          position;
+        
+        // 获取仓位分配参数（默认为1，表示全仓交易）
+        const positionDivision = createBacktestDto.positionDivision || 1;
+        
+        // 计算交易数量，考虑仓位分配
+        let amount;
+        
+        if (position.isZero()) {
+          // 开空仓时按仓位分配
+          amount = balance.dividedBy(price).dividedBy(positionDivision);
+        } else if (position.isGreaterThan(0)) {
+          // 平多仓时使用全部持仓
+          amount = position;
+        } else {
+          // 加仓逻辑：已有空头仓位且还有余额
+          // 计算当前仓位价值（空头仓位为负数，取绝对值）
+          const positionValue = position.abs().multipliedBy(price);
+          // 计算总价值 = 仓位价值 + 余额
+          const totalValue = positionValue.plus(balance);
+          // 计算理想加仓金额
+          const idealAddAmount = totalValue.dividedBy(positionDivision);
+          
+          // 如果余额大于理想加仓金额，则使用理想加仓金额
+          // 否则全部投入
+          const addAmount = balance.isGreaterThan(idealAddAmount) ? 
+            idealAddAmount : 
+            balance;
+            
+          // 计算可以卖出的数量
+          amount = addAmount.dividedBy(price);
+        }
+          
         const fee = amount.multipliedBy(price).multipliedBy(strategy.sellFee);
         
         // 更新余额和持仓
         balance = balance.plus(amount.multipliedBy(price)).minus(fee);
+        
+        // 保存旧持仓数量，用于判断操作类型
+        const oldPosition = position.toNumber();
         position = position.minus(amount);
         
-        if (position.isEqualTo(amount.negated())) {
+        if (oldPosition === 0) {
           // 开空仓
           entryPrice = price;
-        } else {
+        } else if (oldPosition > 0 && position.isLessThanOrEqualTo(0)) {
           // 平多仓
           // 计算毛利润
           const grossProfit = price.minus(entryPrice).multipliedBy(amount);
@@ -388,22 +464,34 @@ export class BacktestService {
           else losingTrades++;
           
           balance = balance.plus(netProfit);
+        } else if (oldPosition < 0) {
+          // 加仓 - 计算新的平均持仓价格
+          // 计算旧仓位价值
+          const oldPositionValue = new BigNumber(Math.abs(oldPosition)).multipliedBy(entryPrice);
+          // 计算新增仓位价值
+          const newPositionValue = amount.multipliedBy(price);
+          // 计算总仓位价值
+          const totalPositionValue = oldPositionValue.plus(newPositionValue);
+          // 计算新的平均持仓价格
+          entryPrice = totalPositionValue.dividedBy(position.abs());
         }
 
         // 记录交易
-        const tradeProfit = position.isEqualTo(amount.negated()) ? 
-          null : 
-          price.minus(entryPrice).multipliedBy(amount)
-            .minus(amount.multipliedBy(entryPrice).multipliedBy(strategy.buyFee))
-            .minus(amount.multipliedBy(price).multipliedBy(strategy.sellFee))
+        let tradeProfit = null;
+        let tradeProfitRate = null;
+        
+        // 如果是平多仓，计算利润
+        if (oldPosition > 0 && position.isLessThanOrEqualTo(0)) {
+          tradeProfit = price.minus(entryPrice).multipliedBy(new BigNumber(Math.min(oldPosition, amount.toNumber())))
+            .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.buyFee))
+            .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(price).multipliedBy(strategy.sellFee))
             .toNumber();
             
-        const tradeProfitRate = position.isEqualTo(amount.negated()) ? 
-          null : 
-          price.minus(entryPrice).dividedBy(entryPrice).multipliedBy(100)
+          tradeProfitRate = price.minus(entryPrice).dividedBy(entryPrice).multipliedBy(100)
             .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
             .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
             .toNumber();
+        }
             
         trades.push({
           backtestId: null, // 稍后填充

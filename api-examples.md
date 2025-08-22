@@ -455,7 +455,7 @@ curl -X POST http://localhost:3099/backtest \
   }'
 ```
 
-### 3. 执行带有自定义提前结束阈值的回测
+### 3. 执行带有自定义提前结束阈值和仓位分配的回测
 
 ```bash
 curl -X POST http://localhost:3099/backtest \
@@ -467,7 +467,8 @@ curl -X POST http://localhost:3099/backtest \
     "startTime": "2025-01-01T00:00:00.000Z",
     "endTime": "2025-08-01T00:00:00.000Z",
     "initialCapital": 10000,
-    "earlyStopThreshold": 5
+    "earlyStopThreshold": 5,
+    "positionDivision": 4
   }'
 ```
 
