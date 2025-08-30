@@ -7,6 +7,8 @@ import { CreateBacktestDto } from './dto/create-backtest.dto';
 import { RedisService } from '../common/services/redis.service';
 import { StrategiesService } from '../strategies/strategies.service';
 import { IndicatorsService } from '../indicators/indicators.service';
+import { PriceDataService } from '../price-data/price-data.service';
+import { PriceData } from '../price-data/entities/price-data.entity';
 import BigNumber from 'bignumber.js';
 
 @Injectable()
@@ -19,6 +21,7 @@ export class BacktestService {
     private redisService: RedisService,
     private strategiesService: StrategiesService,
     private indicatorsService: IndicatorsService,
+    private priceDataService: PriceDataService,
   ) {}
 
   async runBacktest(createBacktestDto: CreateBacktestDto): Promise<BacktestResult> {
@@ -74,42 +77,30 @@ export class BacktestService {
     timeframeId: number,
     startTime: Date,
     endTime: Date,
-  ): Promise<any[]> {
-    // 从Redis获取价格数据
+  ): Promise<PriceData[] | null> {
+    // 使用Redis服务的getOrSet方法，处理缓存击穿
     const cacheKey = `price_data:${pairId}:${timeframeId}:${startTime.getTime()}:${endTime.getTime()}`;
-    const cachedData = await this.redisService.get(cacheKey);
+    
+    return this.redisService.getOrSet(
+      cacheKey,
+      async () => {
+        // 使用PriceDataService获取价格数据
+        const priceData = await this.priceDataService.findPriceDataByRange(
+          pairId,
+          timeframeId,
+          startTime.getTime(),
+          endTime.getTime()
+        );
 
-    if (cachedData) {
-      return cachedData;
-    }
-
-    // 如果Redis中不存在，从数据库获取
-    // 这里假设有一个PriceDataRepository，实际项目中需要创建
-    // 这里使用TypeORM的原生查询来模拟
-    const priceDataQuery = `
-      SELECT * FROM price_data 
-      WHERE pair_id = ? AND timeframe_id = ? 
-      AND timestamp BETWEEN ? AND ?
-      ORDER BY timestamp ASC
-    `;
-
-    // 这里使用了TypeORM的原生查询，实际项目中可能需要调整
-    const priceData = await this.backtestResultRepository.query(
-      priceDataQuery,
-      [pairId, timeframeId, startTime, endTime]
+        return priceData && priceData.length > 0 ? priceData : null;
+      },
+      3600 // 缓存1小时
     );
-
-    // 缓存到Redis
-    if (priceData && priceData.length > 0) {
-      await this.redisService.set(cacheKey, priceData, 3600); // 缓存1小时
-    }
-
-    return priceData;
   }
 
   private async executeBacktest(
     strategy: any,
-    priceData: any[],
+    priceData: PriceData[],
     initialCapital: number,
     createBacktestDto: CreateBacktestDto,
   ): Promise<BacktestResult> {
@@ -181,7 +172,7 @@ export class BacktestService {
         position, 
         balance, 
         entryPrice, 
-        new BigNumber(candle.close_price), 
+        new BigNumber(candle.closePrice),
         timestamp, 
         strategy, 
         trades
@@ -295,7 +286,7 @@ export class BacktestService {
       // 执行交易
       if (buySignal && (position.isLessThanOrEqualTo(0) || strategy.positionType === 'both')) {
         // 买入
-        const price = new BigNumber(candle.close_price);
+        const price = new BigNumber(candle.closePrice);
         
         // 获取仓位分配参数（默认为1，表示全仓交易）
         const positionDivision = createBacktestDto.positionDivision || 1;
@@ -402,7 +393,7 @@ export class BacktestService {
       
       if (sellSignal && (position.isGreaterThanOrEqualTo(0) || strategy.positionType === 'both')) {
         // 卖出
-        const price = new BigNumber(candle.close_price);
+        const price = new BigNumber(candle.closePrice);
         
         // 获取仓位分配参数（默认为1，表示全仓交易）
         const positionDivision = createBacktestDto.positionDivision || 1;
@@ -508,7 +499,7 @@ export class BacktestService {
       }
 
       // 更新最大回撤
-      const currentPrice = new BigNumber(candle.close_price);
+      const currentPrice = new BigNumber(candle.closePrice);
       const positionValue = position.multipliedBy(currentPrice);
       const currentBalance = balance.plus(positionValue);
       
@@ -533,7 +524,7 @@ export class BacktestService {
 
     // 计算最终资金
     const finalCandle = priceData[priceData.length - 1];
-    const finalPrice = new BigNumber(finalCandle.close_price);
+    const finalPrice = new BigNumber(finalCandle.closePrice);
     const finalCapital = balance.plus(position.multipliedBy(finalPrice));
     
     // 计算总收益和收益率
@@ -608,7 +599,7 @@ export class BacktestService {
     condition: any, 
     indicatorValues: any, 
     index: number, 
-    priceData: any[]
+    priceData: PriceData[]
   ): boolean {
     // 获取指标值
     const indicatorId = condition.indicatorId;
@@ -688,8 +679,30 @@ export class BacktestService {
     });
   }
 
-  async getBacktestFromRedis(backtestId: number): Promise<any> {
-    return this.redisService.get(`backtest:${backtestId}`);
+  async getBacktestFromRedis(backtestId: number): Promise<(BacktestResult & { trades: BacktestTrade[] }) | null> {
+    return this.redisService.getOrSet(
+      `backtest:${backtestId}`,
+      async () => {
+        // 当Redis中没有数据时，这个函数会被调用
+        const backtest = await this.backtestResultRepository.findOne({ where: { id: backtestId } });
+        if (!backtest) {
+          return null;
+        }
+        
+        // 获取交易记录
+        const trades = await this.backtestTradeRepository.find({ 
+          where: { backtestId },
+          order: { timestamp: 'ASC' }
+        });
+        
+        // 返回完整的回测对象
+        return {
+          ...backtest,
+          trades,
+        };
+      },
+      3600 // 缓存1小时
+    );
   }
   
   /**

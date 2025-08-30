@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { VM } from 'vm2';
 import { Indicator } from './entities/indicator.entity';
 import { IndicatorParameter } from './entities/indicator-parameter.entity';
 import { CreateIndicatorDto } from './dto/create-indicator.dto';
 import { RedisService } from '../common/services/redis.service';
+import { ProcessExecutorService } from '../common/services/process-executor.service';
 
 @Injectable()
 export class IndicatorsService {
@@ -15,6 +15,7 @@ export class IndicatorsService {
     @InjectRepository(IndicatorParameter)
     private parameterRepository: Repository<IndicatorParameter>,
     private redisService: RedisService,
+    private processExecutor: ProcessExecutorService,
   ) {}
 
   async create(createIndicatorDto: CreateIndicatorDto): Promise<Indicator> {
@@ -89,30 +90,23 @@ export class IndicatorsService {
     parameters: Record<string, any>
   ): Promise<any[]> {
     try {
-      // 使用VM2安全执行指标代码
-      const vm = new VM({
-        timeout: 10*60*1000, // 10*60秒超时
-        sandbox: {
-          priceData: JSON.parse(JSON.stringify(priceData)), // 深拷贝防止修改原始数据
-          parameters,
-          console: {
-            log: () => {}, // 禁用控制台输出
-          },
-        },
-      });
-
-      // 包装代码，确保返回结果
-      const wrappedCode = `
-        (function() {
-          ${code}
-          if (typeof calculate !== 'function') {
-            throw new Error('Indicator code must export a calculate function');
-          }
-          return calculate(priceData, parameters);
-        })()
+      // 准备要在子进程中执行的代码
+      const workerCode = `
+        ${code}
       `;
-
-      return vm.run(wrappedCode);
+      
+      // 准备传递给子进程的数据
+      const processData = {
+        priceData: JSON.parse(JSON.stringify(priceData)), // 深拷贝防止修改原始数据
+        parameters
+      };
+      
+      // 在子进程中执行代码
+      return await this.processExecutor.executeInProcess(
+        workerCode,
+        processData,
+        10 * 60 * 1000 // 10分钟超时
+      );
     } catch (error) {
       throw new Error(`Error executing indicator code: ${error.message}`);
     }
@@ -133,7 +127,26 @@ export class IndicatorsService {
     });
   }
 
-  private async getIndicatorFromRedis(indicatorId: number): Promise<any> {
-    return this.redisService.get(`indicator:${indicatorId}`);
+  private async getIndicatorFromRedis(indicatorId: number): Promise<Indicator & { parameters: IndicatorParameter[] } | null> {
+    return this.redisService.getOrSet(
+      `indicator:${indicatorId}`,
+      async () => {
+        // 当Redis中没有数据时，这个函数会被调用
+        const indicator = await this.indicatorRepository.findOne({ where: { id: indicatorId } });
+        if (!indicator) {
+          return null;
+        }
+        
+        // 获取指标参数
+        const parameters = await this.parameterRepository.find({ where: { indicatorId } });
+        
+        // 返回完整的指标对象
+        return {
+          ...indicator,
+          parameters,
+        };
+      },
+      3600 // 缓存1小时
+    );
   }
 }

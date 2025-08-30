@@ -40,13 +40,52 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   // 从Redis获取数据，支持自动反序列化对象
   async get<T = any>(key: string): Promise<T | null> {
-    const value = await this.redisClient.get(key);
-    if (!value) return null;
-    
     try {
-      return JSON.parse(value) as T;
-    } catch {
-      return value as unknown as T;
+      const value = await this.redisClient.get(key);
+      if (!value) return null;
+      
+      try {
+        return JSON.parse(value) as T;
+      } catch {
+        return value as unknown as T;
+      }
+    } catch (error) {
+      console.error(`Redis get error for key ${key}:`, error);
+      return null;
+    }
+  }
+
+  // 使用缓存-穿透模式获取数据：如果缓存中没有，则使用提供的函数获取数据并缓存
+  async getOrSet<T = any>(
+    key: string, 
+    fetchFn: () => Promise<T>, 
+    expireSeconds?: number
+  ): Promise<T | null> {
+    try {
+      // 尝试从缓存获取
+      const cachedValue = await this.get<T>(key);
+      if (cachedValue !== null) {
+        return cachedValue;
+      }
+
+      // 缓存中没有，调用提供的函数获取数据
+      const value = await fetchFn();
+      
+      // 如果获取到数据，则缓存它
+      if (value !== null && value !== undefined) {
+        await this.set(key, value, expireSeconds);
+      }
+      
+      return value;
+    } catch (error) {
+      console.error(`Redis getOrSet error for key ${key}:`, error);
+      // 如果Redis出错，直接调用提供的函数获取数据
+      try {
+        return await fetchFn();
+      } catch (fetchError) {
+        console.error(`Data fetch error for key ${key}:`, fetchError);
+        return null;
+      }
     }
   }
 

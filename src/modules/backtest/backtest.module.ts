@@ -6,12 +6,14 @@ import { BacktestService } from './backtest.service';
 import { BacktestController } from './backtest.controller';
 import { StrategiesModule } from '../strategies/strategies.module';
 import { IndicatorsModule } from '../indicators/indicators.module';
+import { PriceDataModule } from '../price-data/price-data.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([BacktestResult, BacktestTrade]),
     StrategiesModule,
     IndicatorsModule,
+    PriceDataModule,
   ],
   controllers: [BacktestController],
   providers: [BacktestService],

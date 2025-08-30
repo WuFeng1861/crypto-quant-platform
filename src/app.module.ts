@@ -5,6 +5,7 @@ import { CommonModule } from './modules/common/common.module';
 import { IndicatorsModule } from './modules/indicators/indicators.module';
 import { StrategiesModule } from './modules/strategies/strategies.module';
 import { BacktestModule } from './modules/backtest/backtest.module';
+import { PriceDataModule } from './modules/price-data/price-data.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { BacktestModule } from './modules/backtest/backtest.module';
     IndicatorsModule,
     StrategiesModule,
     BacktestModule,
+    PriceDataModule,
   ],
 })
 export class AppModule {}

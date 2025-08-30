@@ -1,12 +1,15 @@
 # 量化回测平台 API 文档
 
+本文档描述了量化回测平台的所有API接口，包括价格数据管理、指标管理、策略管理和回测系统。
+
 ## 目录
 
 1. [API 响应格式](#api-响应格式)
-2. [指标管理 API](#指标管理-api)
-3. [策略管理 API](#策略管理-api)
-4. [回测系统 API](#回测系统-api)
-5. [使用示例](api-examples.md)
+2. [价格数据管理 API](#价格数据管理-api)
+3. [指标管理 API](#指标管理-api)
+4. [策略管理 API](#策略管理-api)
+5. [回测系统 API](#回测系统-api)
+6. [使用示例](api-examples.md)
 
 ## API 响应格式
 
@@ -14,578 +17,452 @@
 
 ```json
 {
-  "code": 200,       // HTTP 状态码
-  "message": "操作成功", // 操作结果描述
-  "data": {},        // 实际数据内容
-  "timestamp": 1755860989513 // 响应时间戳
-}
-```
-
-错误响应格式：
-
-```json
-{
-  "code": 400,       // HTTP 错误状态码
-  "message": "错误描述", // 错误信息
-  "data": null,      // 错误时数据为 null
+  "success": true,
+  "data": {}, // 响应数据
+  "message": "操作成功",
   "timestamp": 1755860989513, // 响应时间戳
   "path": "/api/path" // 请求路径
 }
 ```
 
-## 指标管理 API
+## 价格数据管理 API
 
-### 创建指标
+### 1. 创建价格数据
 
-- **URL**: `/indicators`
-- **方法**: `POST`
-- **描述**: 创建新的技术指标
-- **请求体**:
+**POST** `/price-data`
 
+创建新的价格数据记录。
+
+**请求体：**
 ```json
 {
-  "name": "指标名称",
-  "description": "指标描述",
-  "calculationCode": "function calculate(priceData, parameters) { /* 计算逻辑 */ return result; }",
+  "tradingPairId": 1,
+  "timeframeId": 1,
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "open": 50000.00,
+  "high": 51000.00,
+  "low": 49500.00,
+  "close": 50500.00,
+  "volume": 1000.50
+}
+```
+
+**参数说明：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tradingPairId | number | 是 | 交易对ID |
+| timeframeId | number | 是 | 时间框架ID |
+| timestamp | string | 是 | 时间戳 |
+| open | number | 是 | 开盘价 |
+| high | number | 是 | 最高价 |
+| low | number | 是 | 最低价 |
+| close | number | 是 | 收盘价 |
+| volume | number | 是 | 成交量 |
+
+### 2. 获取所有价格数据
+
+**GET** `/price-data`
+
+获取所有价格数据记录。
+
+### 3. 按范围获取价格数据
+
+**GET** `/price-data/range`
+
+根据时间范围和其他条件获取价格数据。
+
+**查询参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| tradingPairId | number | 是 | 交易对ID |
+| timeframeId | number | 是 | 时间框架ID |
+| startTime | string | 是 | 开始时间 |
+| endTime | string | 是 | 结束时间 |
+
+### 4. 获取单个价格数据
+
+**GET** `/price-data/:id`
+
+根据ID获取特定的价格数据记录。
+
+### 交易对管理
+
+### 5. 创建交易对
+
+**POST** `/price-data/trading-pairs`
+
+创建新的交易对。
+
+**请求体：**
+```json
+{
+  "symbol": "BTCUSDT",
+  "baseAsset": "BTC",
+  "quoteAsset": "USDT",
+  "description": "Bitcoin/Tether"
+}
+```
+
+### 6. 获取所有交易对
+
+**GET** `/price-data/trading-pairs`
+
+获取所有交易对列表。
+
+### 7. 获取单个交易对
+
+**GET** `/price-data/trading-pairs/:id`
+
+根据ID获取特定交易对。
+
+### 8. 根据符号获取交易对
+
+**GET** `/price-data/trading-pairs/symbol/:symbol`
+
+根据交易对符号获取交易对信息。
+
+### 时间框架管理
+
+### 9. 创建时间框架
+
+**POST** `/price-data/timeframes`
+
+创建新的时间框架。
+
+**请求体：**
+```json
+{
+  "name": "1h",
+  "intervalMinutes": 60,
+  "description": "1小时K线"
+}
+```
+
+### 10. 获取所有时间框架
+
+**GET** `/price-data/timeframes`
+
+获取所有时间框架列表。
+
+### 11. 获取单个时间框架
+
+**GET** `/price-data/timeframes/:id`
+
+根据ID获取特定时间框架。
+
+### 12. 根据名称获取时间框架
+
+**GET** `/price-data/timeframes/name/:name`
+
+根据时间框架名称获取时间框架信息。
+
+## 指标管理 API
+
+### 1. 创建指标
+
+**POST** `/indicators`
+
+创建新的技术指标。
+
+**请求体：**
+```json
+{
+  "name": "SMA",
+  "displayName": "简单移动平均线",
+  "description": "计算指定周期的简单移动平均值",
+  "category": "trend",
   "parameters": [
     {
-      "name": "参数名称",
-      "description": "参数描述",
-      "defaultValue": "默认值",
-      "paramType": "number|string|boolean"
+      "name": "period",
+      "displayName": "周期",
+      "type": "number",
+      "defaultValue": 20,
+      "minValue": 1,
+      "maxValue": 200,
+      "description": "计算移动平均的周期数"
     }
   ]
 }
 ```
 
-- **响应**:
+**参数说明：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 指标名称（唯一标识） |
+| displayName | string | 是 | 显示名称 |
+| description | string | 否 | 指标描述 |
+| category | string | 否 | 指标分类 |
+| parameters | array | 否 | 指标参数配置 |
 
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": {
-    "id": 1,
-    "name": "指标名称",
-    "description": "指标描述",
-    "calculationCode": "function calculate(priceData, parameters) { /* 计算逻辑 */ return result; }",
-    "createdAt": "2025-08-22T11:00:00.000Z",
-    "updatedAt": "2025-08-22T11:00:00.000Z"
-  },
-  "timestamp": 1755860989513
-}
-```
+### 2. 获取所有指标
 
-### 获取所有指标
+**GET** `/indicators`
 
-- **URL**: `/indicators`
-- **方法**: `GET`
-- **描述**: 获取所有技术指标
-- **响应**:
+获取所有可用的技术指标列表。
 
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": [
-    {
-      "id": 1,
-      "name": "简单移动平均线",
-      "description": "计算价格的简单移动平均线",
-      "calculationCode": "...",
-      "createdAt": "2025-08-22T11:00:00.000Z",
-      "updatedAt": "2025-08-22T11:00:00.000Z"
-    }
-  ],
-  "timestamp": 1755860989513
-}
-```
+### 3. 获取单个指标
 
-### 获取单个指标
+**GET** `/indicators/:id`
 
-- **URL**: `/indicators/:id`
-- **方法**: `GET`
-- **描述**: 获取指定 ID 的技术指标
-- **参数**: `id` - 指标 ID
-- **响应**:
+根据ID获取特定指标的详细信息。
 
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": {
-    "id": 1,
-    "name": "简单移动平均线",
-    "description": "计算价格的简单移动平均线",
-    "calculationCode": "...",
-    "createdAt": "2025-08-22T11:00:00.000Z",
-    "updatedAt": "2025-08-22T11:00:00.000Z"
-  },
-  "timestamp": 1755860989513
-}
-```
+### 4. 获取指标参数
 
-### 获取指标参数
+**GET** `/indicators/:id/parameters`
 
-- **URL**: `/indicators/:id/parameters`
-- **方法**: `GET`
-- **描述**: 获取指定指标的参数
-- **参数**: `id` - 指标 ID
-- **响应**:
+获取指定指标的所有参数配置。
 
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": [
-    {
-      "id": 1,
-      "indicatorId": 1,
-      "name": "period",
-      "description": "周期",
-      "defaultValue": "14",
-      "paramType": "number",
-      "createdAt": "2025-08-22T11:00:00.000Z",
-      "updatedAt": "2025-08-22T11:00:00.000Z"
-    }
-  ],
-  "timestamp": 1755860989513
-}
-```
+### 5. 计算指标值
 
-### 计算指标值
+**POST** `/indicators/:id/calculate`
 
-- **URL**: `/indicators/:id/calculate`
-- **方法**: `POST`
-- **描述**: 使用指定指标计算价格数据
-- **参数**: `id` - 指标 ID
-- **请求体**:
+计算指定指标在给定数据上的值。
 
+**请求体：**
 ```json
 {
   "priceData": [
     {
-      "timestamp": 1755860000000,
-      "open_price": 50000,
-      "high_price": 51000,
-      "low_price": 49500,
-      "close_price": 50500,
-      "volume": 100
+      "timestamp": "2024-01-01T00:00:00.000Z",
+      "open": 50000,
+      "high": 51000,
+      "low": 49500,
+      "close": 50500,
+      "volume": 1000
     }
   ],
   "parameters": {
-    "period": 14
+    "period": 20
   }
-}
-```
-
-- **响应**:
-
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": [null, null, ..., 50500],
-  "timestamp": 1755860989513
 }
 ```
 
 ## 策略管理 API
 
-### 创建策略
+### 1. 创建策略
 
-- **URL**: `/strategies`
-- **方法**: `POST`
-- **描述**: 创建新的交易策略
-- **请求体**:
+**POST** `/strategies`
 
+创建新的交易策略。
+
+**请求体：**
 ```json
 {
-  "name": "策略名称",
-  "description": "策略描述",
-  "positionType": "long|short|both",
-  "buyFee": 0.001,
-  "sellFee": 0.001,
-  "liquidationThreshold": 90,
+  "name": "MA交叉策略",
+  "description": "基于移动平均线交叉的交易策略",
   "indicators": [
     {
       "indicatorId": 1,
-      "priority": 0,
+      "alias": "sma_short",
       "parameters": [
         {
-          "parameterId": 1,
-          "value": "20"
+          "name": "period",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "indicatorId": 1,
+      "alias": "sma_long",
+      "parameters": [
+        {
+          "name": "period",
+          "value": 30
         }
       ]
     }
   ],
   "conditions": [
     {
-      "indicatorId": 1,
-      "comparisonType": "indicator|constant",
-      "comparedIndicatorId": 2,
-      "constantValue": "50",
-      "operator": ">|<|>=|<=|==|!=",
-      "conditionType": "crossover|value",
-      "action": "buy|sell|none",
-      "group": 1,
-      "priority": 0
+      "type": "buy",
+      "logic": "sma_short > sma_long AND prev(sma_short) <= prev(sma_long)"
+    },
+    {
+      "type": "sell",
+      "logic": "sma_short < sma_long AND prev(sma_short) >= prev(sma_long)"
     }
   ]
 }
 ```
 
-- **响应**:
+**参数说明：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 策略名称 |
+| description | string | 否 | 策略描述 |
+| indicators | array | 是 | 策略使用的指标配置 |
+| conditions | array | 是 | 交易条件配置 |
 
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": {
-    "id": 1,
-    "name": "策略名称",
-    "description": "策略描述",
-    "positionType": "both",
-    "buyFee": 0.001,
-    "sellFee": 0.001,
-    "liquidationThreshold": 90,
-    "createdAt": "2025-08-22T11:00:00.000Z",
-    "updatedAt": "2025-08-22T11:00:00.000Z"
-  },
-  "timestamp": 1755860989513
-}
-```
+### 2. 获取所有策略
 
-### 获取所有策略
+**GET** `/strategies`
 
-- **URL**: `/strategies`
-- **方法**: `GET`
-- **描述**: 获取所有交易策略
-- **响应**:
+获取所有交易策略列表。
 
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": [
-    {
-      "id": 1,
-      "name": "双均线策略",
-      "description": "使用短期和长期均线交叉产生交易信号",
-      "positionType": "both",
-      "buyFee": 0.001,
-      "sellFee": 0.001,
-      "createdAt": "2025-08-22T11:00:00.000Z",
-      "updatedAt": "2025-08-22T11:00:00.000Z"
-    }
-  ],
-  "timestamp": 1755860989513
-}
-```
+### 3. 获取单个策略
 
-### 获取单个策略
+**GET** `/strategies/:id`
 
-- **URL**: `/strategies/:id`
-- **方法**: `GET`
-- **描述**: 获取指定 ID 的交易策略
-- **参数**: `id` - 策略 ID
-- **响应**:
+根据ID获取特定策略的详细信息。
 
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": {
-    "id": 1,
-    "name": "双均线策略",
-    "description": "使用短期和长期均线交叉产生交易信号",
-    "positionType": "both",
-    "buyFee": 0.001,
-    "sellFee": 0.001,
-    "createdAt": "2025-08-22T11:00:00.000Z",
-    "updatedAt": "2025-08-22T11:00:00.000Z"
-  },
-  "timestamp": 1755860989513
-}
-```
+### 4. 获取策略指标
 
-### 获取策略指标
+**GET** `/strategies/:id/indicators`
 
-- **URL**: `/strategies/:id/indicators`
-- **方法**: `GET`
-- **描述**: 获取指定策略的指标配置
-- **参数**: `id` - 策略 ID
-- **响应**:
-
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": [
-    {
-      "id": 1,
-      "strategyId": 1,
-      "indicatorId": 1,
-      "priority": 0,
-      "parameters": [
-        {
-          "id": 1,
-          "strategyIndicatorId": 1,
-          "parameterId": 1,
-          "value": "5"
-        }
-      ]
-    },
-    {
-      "id": 2,
-      "strategyId": 1,
-      "indicatorId": 1,
-      "priority": 1,
-      "parameters": [
-        {
-          "id": 2,
-          "strategyIndicatorId": 2,
-          "parameterId": 1,
-          "value": "20"
-        }
-      ]
-    }
-  ],
-  "timestamp": 1755860989513
-}
-```
-
-### 获取策略条件
-
-- **URL**: `/strategies/:id/conditions`
-- **方法**: `GET`
-- **描述**: 获取指定策略的条件配置
-- **参数**: `id` - 策略 ID
-- **响应**:
-
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": [
-    {
-      "id": 1,
-      "strategyId": 1,
-      "indicatorId": 1,
-      "comparisonType": "indicator",
-      "comparedIndicatorId": 2,
-      "constantValue": null,
-      "operator": ">",
-      "conditionType": "crossover",
-      "action": "buy",
-      "priority": 0,
-      "createdAt": "2025-08-22T11:00:00.000Z",
-      "updatedAt": "2025-08-22T11:00:00.000Z"
-    },
-    {
-      "id": 2,
-      "strategyId": 1,
-      "indicatorId": 1,
-      "comparisonType": "indicator",
-      "comparedIndicatorId": 2,
-      "constantValue": null,
-      "operator": "<",
-      "conditionType": "crossover",
-      "action": "sell",
-      "priority": 1,
-      "createdAt": "2025-08-22T11:00:00.000Z",
-      "updatedAt": "2025-08-22T11:00:00.000Z"
-    }
-  ],
-  "timestamp": 1755860989513
-}
-```
+获取指定策略使用的所有指标配置。
 
 ## 回测系统 API
 
-### 执行回测
+### 1. 运行回测
 
-- **URL**: `/backtest`
-- **方法**: `POST`
-- **描述**: 使用指定策略执行回测
-- **请求体**:
+**POST** `/backtest`
 
+执行策略回测。
+
+**请求体：**
 ```json
 {
   "strategyId": 1,
-  "pairId": 1,
+  "tradingPairId": 1,
   "timeframeId": 1,
-  "startTime": "2025-01-01T00:00:00.000Z",
-  "endTime": "2025-08-01T00:00:00.000Z",
+  "startTime": "2024-01-01T00:00:00.000Z",
+  "endTime": "2024-12-31T23:59:59.000Z",
   "initialCapital": 10000,
   "earlyStopThreshold": 10
 }
 ```
 
-| 参数 | 类型 | 必填 | 描述 |
+**参数说明：**
+| 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | strategyId | number | 是 | 策略ID |
-| pairId | number | 是 | 交易对ID |
-| timeframeId | number | 是 | 时间周期ID |
+| tradingPairId | number | 是 | 交易对ID |
+| timeframeId | number | 是 | 时间框架ID |
 | startTime | string | 是 | 回测开始时间 |
 | endTime | string | 是 | 回测结束时间 |
 | initialCapital | number | 是 | 初始资金 |
-| earlyStopThreshold | number | 否 | 提前结束阈值，默认为10（表示当资金低于初始资金的10%且无持仓时提前结束回测） |
-| positionDivision | number | 否 | 仓位分配，默认为1（表示全仓交易）；大于1表示将资金平均分为多次使用 |
+| earlyStopThreshold | number | 否 | 提前结束阈值（百分比），默认为10 |
 
-- **响应**:
-
+**响应示例：**
 ```json
 {
-  "code": 200,
-  "message": "操作成功",
+  "success": true,
   "data": {
     "id": 1,
     "strategyId": 1,
-    "pairId": 1,
+    "tradingPairId": 1,
     "timeframeId": 1,
-    "startTime": "2025-01-01T00:00:00.000Z",
-    "endTime": "2025-08-01T00:00:00.000Z",
+    "startTime": "2024-01-01T00:00:00.000Z",
+    "endTime": "2024-12-31T23:59:59.000Z",
     "initialCapital": 10000,
     "finalCapital": 12500,
     "totalProfit": 2500,
-    "profitRate": 25,
-    "maxDrawdown": 10,
-    "totalTrades": 15,
-    "winningTrades": 10,
-    "losingTrades": 5,
-    "winRate": 66.67,
-    "sharpeRatio": 1.5,
-    "earlyStopped": false,
-    "earlyStopReason": null,
-    "earlyStopTime": null,
-    "createdAt": "2025-08-22T11:00:00.000Z",
-    "updatedAt": "2025-08-22T11:00:00.000Z"
+    "totalReturn": 25.0,
+    "totalTrades": 45,
+    "winningTrades": 28,
+    "losingTrades": 17,
+    "winRate": 62.22,
+    "maxDrawdown": 8.5,
+    "sharpeRatio": 1.45,
+    "createdAt": "2024-01-01T10:00:00.000Z",
+    "updatedAt": "2024-01-01T10:30:00.000Z"
   },
-  "timestamp": 1755860989513
+  "message": "回测执行成功",
+  "timestamp": 1704096000000,
+  "path": "/backtest"
 }
 ```
 
-### 获取所有回测结果
+### 2. 获取所有回测结果
 
-- **URL**: `/backtest`
-- **方法**: `GET`
-- **描述**: 获取所有回测结果
-- **响应**:
+**GET** `/backtest`
 
+获取所有回测结果列表。
+
+### 3. 获取单个回测结果
+
+**GET** `/backtest/:id`
+
+根据ID获取特定回测结果的详细信息。
+
+### 4. 获取回测交易记录
+
+**GET** `/backtest/:id/trades`
+
+获取指定回测的所有交易记录。
+
+**响应示例：**
 ```json
 {
-  "code": 200,
-  "message": "操作成功",
+  "success": true,
   "data": [
     {
       "id": 1,
-      "strategyId": 1,
-      "pairId": 1,
-      "timeframeId": 1,
-      "startTime": "2025-01-01T00:00:00.000Z",
-      "endTime": "2025-08-01T00:00:00.000Z",
-      "initialCapital": 10000,
-      "finalCapital": 12500,
-      "totalProfit": 2500,
-      "profitRate": 25,
-      "maxDrawdown": 10,
-      "totalTrades": 15,
-      "winningTrades": 10,
-      "losingTrades": 5,
-      "winRate": 66.67,
-      "sharpeRatio": 1.5,
-      "earlyStopped": false,
-      "earlyStopReason": null,
-      "earlyStopTime": null,
-      "createdAt": "2025-08-22T11:00:00.000Z",
-      "updatedAt": "2025-08-22T11:00:00.000Z"
-    }
-  ],
-  "timestamp": 1755860989513
-}
-```
-
-### 获取单个回测结果
-
-- **URL**: `/backtest/:id`
-- **方法**: `GET`
-- **描述**: 获取指定 ID 的回测结果
-- **参数**: `id` - 回测 ID
-- **响应**:
-
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": {
-    "id": 1,
-    "strategyId": 1,
-    "pairId": 1,
-    "timeframeId": 1,
-    "startTime": "2025-01-01T00:00:00.000Z",
-    "endTime": "2025-08-01T00:00:00.000Z",
-    "initialCapital": 10000,
-    "finalCapital": 12500,
-    "totalProfit": 2500,
-    "profitRate": 25,
-    "maxDrawdown": 10,
-    "totalTrades": 15,
-    "winningTrades": 10,
-    "losingTrades": 5,
-    "winRate": 66.67,
-    "sharpeRatio": 1.5,
-    "earlyStopped": false,
-    "earlyStopReason": null,
-    "earlyStopTime": null,
-    "createdAt": "2025-08-22T11:00:00.000Z",
-    "updatedAt": "2025-08-22T11:00:00.000Z"
-  },
-  "timestamp": 1755860989513
-}
-```
-
-### 获取回测交易记录
-
-- **URL**: `/backtest/:id/trades`
-- **方法**: `GET`
-- **描述**: 获取指定回测的交易记录
-- **参数**: `id` - 回测 ID
-- **响应**:
-
-```json
-{
-  "code": 200,
-  "message": "操作成功",
-  "data": [
-    {
-      "id": 1,
-      "backtestId": 1,
-      "timestamp": "2025-01-15T10:30:00.000Z",
-      "tradeType": "buy",
-      "price": 50000,
-      "amount": 0.1,
-      "fee": 5,
-      "profit": null,
-      "profitRate": null,
-      "balance": 5000,
-      "signalIndicatorId": 1,
-      "createdAt": "2025-08-22T11:00:00.000Z"
+      "backtestResultId": 1,
+      "type": "buy",
+      "timestamp": "2024-01-15T09:30:00.000Z",
+      "price": 50500.00,
+      "quantity": 0.1,
+      "amount": 5050.00,
+      "commission": 5.05,
+      "balance": 4944.95,
+      "position": 0.1,
+      "createdAt": "2024-01-01T10:15:00.000Z"
     },
     {
       "id": 2,
-      "backtestId": 1,
-      "timestamp": "2025-02-01T14:45:00.000Z",
-      "tradeType": "sell",
-      "price": 55000,
-      "amount": 0.1,
-      "fee": 5.5,
-      "profit": 500,
-      "profitRate": 10,
-      "balance": 5500,
-      "signalIndicatorId": 2,
-      "createdAt": "2025-08-22T11:00:00.000Z"
+      "backtestResultId": 1,
+      "type": "sell",
+      "timestamp": "2024-01-20T14:45:00.000Z",
+      "price": 52000.00,
+      "quantity": 0.1,
+      "amount": 5200.00,
+      "commission": 5.20,
+      "balance": 10139.75,
+      "position": 0,
+      "createdAt": "2024-01-01T10:20:00.000Z"
     }
   ],
-  "timestamp": 1755860989513
+  "message": "获取交易记录成功",
+  "timestamp": 1704096000000,
+  "path": "/backtest/1/trades"
 }
+```
+
+## 错误响应格式
+
+当API请求失败时，响应格式如下：
+
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "错误描述",
+  "error": {
+    "code": "ERROR_CODE",
+    "details": "详细错误信息"
+  },
+  "timestamp": 1755860989513,
+  "path": "/api/path"
+}
+```
+
+## 常见错误码
+
+| 错误码 | HTTP状态码 | 说明 |
+|--------|------------|------|
+| VALIDATION_ERROR | 400 | 请求参数验证失败 |
+| NOT_FOUND | 404 | 资源不存在 |
+| INTERNAL_ERROR | 500 | 服务器内部错误 |
+| STRATEGY_NOT_FOUND | 404 | 策略不存在 |
+| INDICATOR_NOT_FOUND | 404 | 指标不存在 |
+| INSUFFICIENT_DATA | 400 | 数据不足，无法执行回测 |
+| BACKTEST_FAILED | 500 | 回测执行失败 |
+
+## 注意事项
+
+1. 所有时间参数都使用ISO 8601格式（YYYY-MM-DDTHH:mm:ss.sssZ）
+2. 价格和金额字段支持最多8位小数
+3. 回测执行是异步操作，可能需要一定时间完成
+4. 建议在生产环境中使用适当的认证和授权机制
+5. API响应中的timestamp字段为Unix时间戳（毫秒）

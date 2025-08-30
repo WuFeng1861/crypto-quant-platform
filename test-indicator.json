@@ -1,0 +1,22 @@
+{
+  "priceData": [
+    {"close_price": 100},
+    {"close_price": 105},
+    {"close_price": 110},
+    {"close_price": 115},
+    {"close_price": 120},
+    {"close_price": 125},
+    {"close_price": 130},
+    {"close_price": 135},
+    {"close_price": 140},
+    {"close_price": 145},
+    {"close_price": 150},
+    {"close_price": 155},
+    {"close_price": 160},
+    {"close_price": 165},
+    {"close_price": 170}
+  ],
+  "parameters": {
+    "period": 5
+  }
+}

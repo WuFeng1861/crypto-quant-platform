@@ -148,7 +148,29 @@ export class StrategiesService {
     });
   }
 
-  async getStrategyFromRedis(strategyId: number): Promise<any> {
-    return this.redisService.get(`strategy:${strategyId}`);
+  async getStrategyFromRedis(strategyId: number): Promise<(Strategy & { indicators: any[]; conditions: StrategyCondition[] }) | null> {
+    // 使用Redis服务的getOrSet方法，处理缓存击穿
+    return this.redisService.getOrSet(
+      `strategy:${strategyId}`,
+      async () => {
+        // 当Redis中没有数据时，这个函数会被调用
+        const strategy = await this.findOne(strategyId);
+        if (!strategy) {
+          return null;
+        }
+        
+        // 获取策略的指标和条件
+        const indicators = await this.getStrategyIndicators(strategyId);
+        const conditions = await this.getStrategyConditions(strategyId);
+        
+        // 返回完整的策略对象
+        return {
+          ...strategy,
+          indicators,
+          conditions,
+        };
+      },
+      3600 // 缓存1小时
+    );
   }
 }
