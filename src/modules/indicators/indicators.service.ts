@@ -91,7 +91,7 @@ export class IndicatorsService {
     try {
       // 使用VM2安全执行指标代码
       const vm = new VM({
-        timeout: 5000, // 5秒超时
+        timeout: 10*60*1000, // 10*60秒超时
         sandbox: {
           priceData: JSON.parse(JSON.stringify(priceData)), // 深拷贝防止修改原始数据
           parameters,
