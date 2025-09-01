@@ -1,6 +1,11 @@
 import { Controller, Get, Post, Body, Param, HttpException, HttpStatus } from '@nestjs/common';
 import { IndicatorsService } from './indicators.service';
 import { CreateIndicatorDto } from './dto/create-indicator.dto';
+import { 
+  CalculateIndicatorDto, 
+  CalculateWithPriceDataDto, 
+  CalculateBySymbolDto 
+} from './dto/calculate-indicator.dto';
 import { Indicator } from './entities/indicator.entity';
 import { IndicatorParameter } from './entities/indicator-parameter.entity';
 
@@ -46,7 +51,7 @@ export class IndicatorsController {
   @Post(':id/calculate')
   async calculate(
     @Param('id') id: string,
-    @Body() data: { priceData: any[]; parameters: Record<string, any> },
+    @Body() data: CalculateIndicatorDto,
   ): Promise<any[]> {
     try {
       return await this.indicatorsService.calculateIndicator(
@@ -57,6 +62,50 @@ export class IndicatorsController {
     } catch (error) {
       throw new HttpException(
         `计算指标失败: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post(':id/calculate-with-data')
+  async calculateWithPriceData(
+    @Param('id') id: string,
+    @Body() data: CalculateWithPriceDataDto,
+  ): Promise<any[]> {
+    try {
+      return await this.indicatorsService.calculateIndicatorWithPriceData(
+        +id,
+        data.pairId,
+        data.timeframeId,
+        data.startTime,
+        data.endTime,
+        data.parameters,
+      );
+    } catch (error) {
+      throw new HttpException(
+        `使用价格数据计算指标失败: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post(':id/calculate-by-symbol')
+  async calculateBySymbol(
+    @Param('id') id: string,
+    @Body() data: CalculateBySymbolDto,
+  ): Promise<any[]> {
+    try {
+      return await this.indicatorsService.calculateIndicatorBySymbol(
+        +id,
+        data.symbol,
+        data.timeframeName,
+        data.startTime,
+        data.endTime,
+        data.parameters,
+      );
+    } catch (error) {
+      throw new HttpException(
+        `使用交易对符号计算指标失败: ${error.message}`,
         HttpStatus.BAD_REQUEST,
       );
     }

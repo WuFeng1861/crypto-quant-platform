@@ -17,7 +17,9 @@ process.on('message', (data) => {
         priceData: data.priceData,
         parameters: data.parameters,
         console: {
-          log: () => {}, // 禁用控制台输出
+          log: () => {
+            // console.log(...arguments); // 打印控制台输出 如果函数没有代码就是禁用打印
+          }, 
         },
         require,
         process: {
@@ -28,10 +30,11 @@ process.on('message', (data) => {
 
     // 打印调试信息
     console.log('Worker data:', JSON.stringify({
-      priceData: !!data.priceData,
+      priceData: data.priceData.length,
       parameters: !!data.parameters,
       parametersContent: data.parameters
     }));
+    console.log(data.priceData.length && data.priceData[0]);
 
     // 执行代码
     const result = vm.run(`

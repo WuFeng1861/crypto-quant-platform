@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, HttpException, HttpStatus } from '@nestjs/common';
 import { PriceDataService } from './price-data.service';
 import { CreatePriceDataDto } from './dto/create-price-data.dto';
 import { CreateTradingPairDto } from './dto/create-trading-pair.dto';
@@ -15,7 +15,7 @@ export class PriceDataController {
   @Post()
   async createPriceData(@Body() createPriceDataDto: CreatePriceDataDto): Promise<PriceData> {
     try {
-      return await this.priceDataService.createPriceData(createPriceDataDto);
+      return await this.priceDataService.createPriceDataWithCache(createPriceDataDto);
     } catch (error) {
       throw new HttpException(
         `创建价格数据失败: ${error.message}`,
@@ -123,5 +123,64 @@ export class PriceDataController {
       throw new HttpException('时间周期不存在', HttpStatus.NOT_FOUND);
     }
     return timeframe;
+  }
+
+  // 缓存管理接口
+  @Post('cache/preload/:pairId/:timeframeId')
+  async preloadPriceDataToRedis(
+    @Param('pairId') pairId: string,
+    @Param('timeframeId') timeframeId: string,
+  ): Promise<{ message: string }> {
+    try {
+      await this.priceDataService.preloadPriceDataToRedis(+pairId, +timeframeId);
+      return { message: `成功预加载交易对${pairId}和时间框架${timeframeId}的数据到Redis` };
+    } catch (error) {
+      throw new HttpException(
+        `预加载数据失败: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('cache/preload-all')
+  async preloadAllPriceDataToRedis(): Promise<{ message: string }> {
+    try {
+      await this.priceDataService.preloadAllPriceDataToRedis();
+      return { message: '成功预加载所有价格数据到Redis' };
+    } catch (error) {
+      throw new HttpException(
+        `预加载所有数据失败: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('cache/clear/:pairId/:timeframeId')
+  async clearPriceDataCache(
+    @Param('pairId') pairId: string,
+    @Param('timeframeId') timeframeId: string,
+  ): Promise<{ message: string }> {
+    try {
+      await this.priceDataService.clearPriceDataCache(+pairId, +timeframeId);
+      return { message: `成功清除交易对${pairId}和时间框架${timeframeId}的缓存` };
+    } catch (error) {
+      throw new HttpException(
+        `清除缓存失败: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('cache/clear-all')
+  async clearAllPriceDataCache(): Promise<{ message: string }> {
+    try {
+      await this.priceDataService.clearAllPriceDataCache();
+      return { message: '成功清除所有价格数据缓存' };
+    } catch (error) {
+      throw new HttpException(
+        `清除所有缓存失败: ${error.message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

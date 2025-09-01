@@ -6,6 +6,7 @@ import { IndicatorParameter } from './entities/indicator-parameter.entity';
 import { CreateIndicatorDto } from './dto/create-indicator.dto';
 import { RedisService } from '../common/services/redis.service';
 import { ProcessExecutorService } from '../common/services/process-executor.service';
+import { PriceDataService } from '../price-data/price-data.service';
 
 @Injectable()
 export class IndicatorsService {
@@ -16,6 +17,7 @@ export class IndicatorsService {
     private parameterRepository: Repository<IndicatorParameter>,
     private redisService: RedisService,
     private processExecutor: ProcessExecutorService,
+    private priceDataService: PriceDataService,
   ) {}
 
   async create(createIndicatorDto: CreateIndicatorDto): Promise<Indicator> {
@@ -82,6 +84,93 @@ export class IndicatorsService {
     }
     
     return this.executeIndicatorCode(indicator.calculationCode, priceData, parameters);
+  }
+
+  /**
+   * 使用price-data模块的数据计算指标
+   * @param indicatorId 指标ID
+   * @param pairId 交易对ID
+   * @param timeframeId 时间框架ID
+   * @param startTime 开始时间戳
+   * @param endTime 结束时间戳
+   * @param parameters 指标参数
+   * @returns 计算结果
+   */
+  async calculateIndicatorWithPriceData(
+    indicatorId: number,
+    pairId: number,
+    timeframeId: number,
+    startTime: number,
+    endTime: number,
+    parameters: Record<string, any>
+  ): Promise<any[]> {
+    // 获取价格数据
+    const priceData = await this.priceDataService.findPriceDataByRange(
+      pairId,
+      timeframeId,
+      startTime,
+      endTime
+    );
+
+    if (!priceData || priceData.length === 0) {
+      throw new Error('未找到指定时间范围内的价格数据');
+    }
+
+    // 转换价格数据格式，便于指标计算使用
+    const formattedPriceData = priceData.map(data => ({
+      timestamp: data.timestamp,
+      open: Number(data.openPrice),
+      high: Number(data.highPrice),
+      low: Number(data.lowPrice),
+      close: Number(data.closePrice),
+      volume: Number(data.volume),
+      volumeCurrency: Number(data.volumeCurrency),
+      volumeCurrencyQuote: Number(data.volumeCurrencyQuote)
+    }));
+
+    // 计算指标
+    return this.calculateIndicator(indicatorId, formattedPriceData, parameters);
+  }
+
+  /**
+   * 使用交易对符号和时间框架名称计算指标
+   * @param indicatorId 指标ID
+   * @param symbol 交易对符号 (如: BTCUSDT)
+   * @param timeframeName 时间框架名称 (如: 1h, 4h, 1d)
+   * @param startTime 开始时间戳
+   * @param endTime 结束时间戳
+   * @param parameters 指标参数
+   * @returns 计算结果
+   */
+  async calculateIndicatorBySymbol(
+    indicatorId: number,
+    symbol: string,
+    timeframeName: string,
+    startTime: number,
+    endTime: number,
+    parameters: Record<string, any>
+  ): Promise<any[]> {
+    // 根据符号查找交易对
+    const tradingPair = await this.priceDataService.findTradingPairBySymbol(symbol);
+    if (!tradingPair) {
+      throw new Error(`未找到交易对: ${symbol}`);
+    }
+
+    // 根据名称查找时间框架
+    const timeframe = await this.priceDataService.findTimeframeByName(timeframeName);
+    if (!timeframe) {
+      throw new Error(`未找到时间框架: ${timeframeName}`);
+    }
+
+    // 使用ID计算指标
+    return this.calculateIndicatorWithPriceData(
+      indicatorId,
+      tradingPair.id,
+      timeframe.id,
+      startTime,
+      endTime,
+      parameters
+    );
   }
 
   private async executeIndicatorCode(
