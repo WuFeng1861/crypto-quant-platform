@@ -19,7 +19,7 @@
 
 ## 基础信息
 
-- **基础URL**: `http://localhost:3000`
+- **基础URL**: `http://localhost:3099`
 - **内容类型**: `application/json`
 - **字符编码**: `UTF-8`
 

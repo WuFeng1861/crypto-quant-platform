@@ -115,13 +115,20 @@ export class BacktestService {
     let peakBalance = new BigNumber(initialCapital);
     let returns = [];
 
-    // 计算所有指标的值
-    const indicatorValues = {};
-    for (const indicator of strategy.indicators) {
+    // 计算所有指标的值 - 使用数组下标存储
+    const indicatorValues = [];
+    for (let indicatorIndex = 0; indicatorIndex < strategy.indicators.length; indicatorIndex++) {
+      const indicator = strategy.indicators[indicatorIndex];
+      
       // 获取指标参数
       const parameters = {};
+      // 通过parameterId获取参数名称，然后设置参数值
       for (const param of indicator.parameters) {
-        parameters[param.name] = param.value;
+        // 从indicators服务获取参数定义来获取参数名称
+        const parameterDefinition = await this.indicatorsService.findParameterById(param.parameterId);
+        if (parameterDefinition) {
+          parameters[parameterDefinition.name] = param.value;
+        }
       }
 
       // 计算指标值
@@ -131,8 +138,8 @@ export class BacktestService {
         parameters,
       );
 
-      // 存储指标值
-      indicatorValues[indicator.id] = indicatorResult;
+      // 使用数组下标存储指标值，这样同一指标的不同参数配置可以通过下标区分
+      indicatorValues[indicatorIndex] = indicatorResult;
     }
 
         // 初始化提前结束信息
@@ -597,13 +604,13 @@ export class BacktestService {
 
   private checkCondition(
     condition: any, 
-    indicatorValues: any, 
+    indicatorValues: any[], 
     index: number, 
     priceData: PriceData[]
   ): boolean {
-    // 获取指标值
-    const indicatorId = condition.indicatorId;
-    const indicatorResult = indicatorValues[indicatorId];
+    // 使用指标下标获取指标值
+    const indicatorIndex = condition.indicatorIndex;
+    const indicatorResult = indicatorValues[indicatorIndex];
     if (!indicatorResult) return false;
 
     const currentValue = indicatorResult[index];
@@ -612,8 +619,12 @@ export class BacktestService {
     // 根据比较类型和条件类型检测信号
     if (condition.comparisonType === 'indicator') {
       // 与另一个指标比较
-      const comparedIndicatorId = condition.comparedIndicatorId;
-      const comparedResult = indicatorValues[comparedIndicatorId];
+      const comparedIndicatorIndex = condition.comparedIndicatorIndex;
+      // 验证被比较指标下标是否存在
+      if (comparedIndicatorIndex === null || comparedIndicatorIndex === undefined) {
+        throw new Error(`条件 ${condition.id} 的比较类型为 indicator，但未提供 comparedIndicatorIndex`);
+      }
+      const comparedResult = indicatorValues[comparedIndicatorIndex];
       if (!comparedResult) return false;
 
       const currentComparedValue = comparedResult[index];

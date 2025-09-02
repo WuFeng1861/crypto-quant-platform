@@ -8,16 +8,16 @@ export class StrategyCondition {
   @Column({ name: 'strategy_id' })
   strategyId: number;
 
-  @Column({ name: 'indicator_id' })
-  indicatorId: number;
+  @Column({ name: 'indicator_index' })
+  indicatorIndex: number;
 
   // 比较类型：'indicator'（与另一个指标比较）或 'constant'（与常量比较）
   @Column({ name: 'comparison_type', type: 'enum', enum: ['indicator', 'constant'] })
   comparisonType: string;
 
   // 当比较类型为'indicator'时，指定要比较的指标ID
-  @Column({ name: 'compared_indicator_id', nullable: true })
-  comparedIndicatorId: number;
+  @Column({ name: 'compared_indicator_index', nullable: true })
+  comparedIndicatorIndex: number;
 
   // 当比较类型为'constant'时，指定常量值
   @Column({ name: 'constant_value', nullable: true })

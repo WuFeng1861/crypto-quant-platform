@@ -1,0 +1,88 @@
+{
+  "code": 200,
+  "message": "操作成功",
+  "data": [
+    {
+      "id": 2,
+      "name": "MA交叉策略",
+      "description": "基于MA5和MA20移动平均线交叉的交易策略",
+      "positionType": "both",
+      "buyFee": "0.001000",
+      "sellFee": "0.001000",
+      "liquidationThreshold": "85.00",
+      "createdAt": "2025-09-02T14:49:02.543Z",
+      "updatedAt": "2025-09-02T14:49:02.543Z",
+      "indicators": [
+        {
+          "id": 1,
+          "strategyId": 2,
+          "indicatorId": 3,
+          "priority": 1,
+          "createdAt": "2025-09-02T14:49:02.576Z",
+          "updatedAt": "2025-09-02T14:49:02.576Z",
+          "parameters": [
+            {
+              "id": 1,
+              "strategyIndicatorId": 1,
+              "parameterId": 1,
+              "value": "5",
+              "createdAt": "2025-09-02T14:49:02.583Z",
+              "updatedAt": "2025-09-02T14:49:02.583Z"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "strategyId": 2,
+          "indicatorId": 3,
+          "priority": 2,
+          "createdAt": "2025-09-02T14:49:02.592Z",
+          "updatedAt": "2025-09-02T14:49:02.592Z",
+          "parameters": [
+            {
+              "id": 2,
+              "strategyIndicatorId": 2,
+              "parameterId": 1,
+              "value": "20",
+              "createdAt": "2025-09-02T14:49:02.598Z",
+              "updatedAt": "2025-09-02T14:49:02.598Z"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "id": 1,
+          "strategyId": 2,
+          "indicatorIndex": 0,
+          "comparisonType": "indicator",
+          "comparedIndicatorIndex": 1,
+          "constantValue": null,
+          "operator": ">",
+          "conditionType": "crossover",
+          "action": "buy",
+          "group": 1,
+          "priority": 1,
+          "createdAt": "2025-09-02T14:49:02.607Z",
+          "updatedAt": "2025-09-02T14:49:02.607Z"
+        },
+        {
+          "id": 2,
+          "strategyId": 2,
+          "indicatorIndex": 0,
+          "comparisonType": "indicator",
+          "comparedIndicatorIndex": 1,
+          "constantValue": null,
+          "operator": "<",
+          "conditionType": "crossover",
+          "action": "sell",
+          "group": 1,
+          "priority": 1,
+          "createdAt": "2025-09-02T14:49:02.615Z",
+          "updatedAt": "2025-09-02T14:49:02.615Z"
+        }
+      ]
+    }
+  ],
+  "timestamp": 1756827900060
+}

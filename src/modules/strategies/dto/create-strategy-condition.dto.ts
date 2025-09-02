@@ -2,14 +2,14 @@ import { IsString, IsNotEmpty, IsOptional, IsEnum, IsNumber, Min } from 'class-v
 
 export class CreateStrategyConditionDto {
   @IsNumber()
-  indicatorId: number;
+  indicatorIndex: number;
 
   @IsEnum(['indicator', 'constant'])
   comparisonType: string;
 
   @IsNumber()
   @IsOptional()
-  comparedIndicatorId?: number;
+  comparedIndicatorIndex?: number;
 
   @IsString()
   @IsOptional()

@@ -52,15 +52,51 @@ export class IndicatorsService {
   }
 
   async findAll(): Promise<Indicator[]> {
-    return this.indicatorRepository.find();
+    const cacheKey = 'indicators:all';
+    
+    return this.redisService.getOrSet(
+      cacheKey,
+      async () => {
+        return this.indicatorRepository.find();
+      },
+      3600 // 缓存1小时
+    );
   }
 
   async findOne(id: number): Promise<Indicator> {
-    return this.indicatorRepository.findOne({ where: { id } });
+    const cacheKey = `indicator:basic:${id}`;
+    
+    return this.redisService.getOrSet(
+      cacheKey,
+      async () => {
+        return this.indicatorRepository.findOne({ where: { id } });
+      },
+      3600 // 缓存1小时
+    );
   }
 
   async getIndicatorParameters(indicatorId: number): Promise<IndicatorParameter[]> {
-    return this.parameterRepository.find({ where: { indicatorId } });
+    const cacheKey = `indicator_params_list:${indicatorId}`;
+    
+    return this.redisService.getOrSet(
+      cacheKey,
+      async () => {
+        return this.parameterRepository.find({ where: { indicatorId } });
+      },
+      3600 // 缓存1小时
+    );
+  }
+
+  async findParameterById(parameterId: number): Promise<IndicatorParameter | null> {
+    const cacheKey = `indicator_param_detail:${parameterId}`;
+    
+    return this.redisService.getOrSet(
+      cacheKey,
+      async () => {
+        return this.parameterRepository.findOne({ where: { id: parameterId } });
+      },
+      3600 // 缓存1小时
+    );
   }
 
   async calculateIndicator(

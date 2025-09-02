@@ -41,4 +41,31 @@ export class StrategiesController {
     }
     return this.strategiesService.getStrategyIndicators(+id);
   }
+
+  @Get('with-details/all')
+  async findAllWithIndicatorsAndConditions() {
+    try {
+      return await this.strategiesService.findAllStrategiesWithIndicatorsAndConditions();
+    } catch (error) {
+      throw new HttpException(
+        `获取策略详情失败: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('with-details/:id')
+  async findOneWithIndicatorsAndConditions(@Param('id') id: string) {
+    try {
+      return await this.strategiesService.findOneStrategyWithIndicatorsAndConditions(+id);
+    } catch (error) {
+      if (error.message.includes('not found')) {
+        throw new HttpException('策略不存在', HttpStatus.NOT_FOUND);
+      }
+      throw new HttpException(
+        `获取策略详情失败: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
