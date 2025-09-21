@@ -23,6 +23,12 @@ export class Strategy {
   @Column({ name: 'liquidation_threshold', type: 'decimal', precision: 10, scale: 2, default: 90 })
   liquidationThreshold: number;
 
+  @Column({ name: 'take_profit_ratio', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  takeProfitRatio: number;
+
+  @Column({ name: 'stop_loss_ratio', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  stopLossRatio: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

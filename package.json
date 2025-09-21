@@ -4,7 +4,7 @@
   "description": "加密货币量化回测平台",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "UNLICENSED",,
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as crypto from 'crypto';
+import BigNumber from 'bignumber.js';
 
 // 定义消息接口
 interface WorkerMessage {
@@ -112,6 +113,7 @@ export class ProcessExecutorService {
     const executorCode = `
 const { VM } = require('vm2');
 const path = require('path');
+const BigNumber = require('bignumber.js');
 
 // 获取工作文件路径
 const workerFile = process.argv[2];
@@ -134,7 +136,19 @@ process.on('message', (data) => {
         require,
         process: {
           env: process.env
-        }
+        },
+        // 添加 BigNumber 支持
+        BigNumber: BigNumber,
+        // 添加常用的数学工具函数
+        Math: Math,
+        // 添加数组和对象工具
+        Array: Array,
+        Object: Object,
+        // 添加类型检查函数
+        isNaN: isNaN,
+        isFinite: isFinite,
+        parseFloat: parseFloat,
+        parseInt: parseInt
       },
     });
 

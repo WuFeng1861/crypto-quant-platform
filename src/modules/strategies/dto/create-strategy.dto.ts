@@ -56,6 +56,17 @@ export class CreateStrategyDto {
   @Max(100)
   liquidationThreshold?: number = 90;
 
+  @IsNumber()
+  @IsOptional()
+  @Min(100)
+  takeProfitRatio?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  @Max(100)
+  stopLossRatio?: number;
+
   @ValidateNested({ each: true })
   @Type(() => StrategyIndicatorDto)
   indicators: StrategyIndicatorDto[];

@@ -34,6 +34,8 @@ async function getAllStrategiesWithDetails() {
       console.log(`   买入手续费: ${strategy.buyFee*100}%`);
       console.log(`   卖出手续费: ${strategy.sellFee*100}%`);
       console.log(`   清算阈值: ${strategy.liquidationThreshold}%`);
+      console.log(`   止盈比例: ${strategy.takeProfitRatio ? strategy.takeProfitRatio + '%' : '未设置'}`);
+      console.log(`   止损比例: ${strategy.stopLossRatio ? strategy.stopLossRatio + '%' : '未设置'}`);
       console.log(`   创建时间: ${new Date(strategy.createdAt).toLocaleString('zh-CN')}`);
       console.log(`   更新时间: ${new Date(strategy.updatedAt).toLocaleString('zh-CN')}`);
       
@@ -118,6 +120,8 @@ async function getStrategyWithDetails(strategyId) {
     console.log(`   买入手续费: ${strategy.buyFee * 100}%`);
     console.log(`   卖出手续费: ${strategy.sellFee* 100}%`);
     console.log(`   清算阈值: ${strategy.liquidationThreshold}%`);
+    console.log(`   止盈比例: ${strategy.takeProfitRatio ? strategy.takeProfitRatio + '%' : '未设置'}`);
+    console.log(`   止损比例: ${strategy.stopLossRatio ? strategy.stopLossRatio + '%' : '未设置'}`);
     console.log(`   创建时间: ${new Date(strategy.createdAt).toLocaleString('zh-CN')}`);
     console.log(`   更新时间: ${new Date(strategy.updatedAt).toLocaleString('zh-CN')}`);
     

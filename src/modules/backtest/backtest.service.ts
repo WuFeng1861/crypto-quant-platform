@@ -192,6 +192,30 @@ export class BacktestService {
         continue;
       }
 
+      // 检查止盈止损
+      const stopResult = this.checkAndHandleStopLoss(
+        position,
+        balance,
+        entryPrice,
+        new BigNumber(candle.closePrice),
+        timestamp,
+        strategy,
+        trades
+      );
+
+      if (stopResult.stopped) {
+        position = stopResult.position;
+        balance = stopResult.balance;
+        if (stopResult.profit > 0) {
+          winningTrades++;
+        } else {
+          losingTrades++;
+        }
+        // 重置入场价格
+        entryPrice = new BigNumber(0);
+        continue;
+      }
+
       // 检查条件并生成信号
       let buySignal = false;
       let sellSignal = false;
@@ -783,6 +807,126 @@ export class BacktestService {
       }
     }
     
+    return result;
+  }
+
+  /**
+   * 检查并处理止盈止损
+   * @param position 当前持仓
+   * @param balance 当前余额
+   * @param entryPrice 开仓价格
+   * @param currentPrice 当前价格
+   * @param timestamp 当前时间戳
+   * @param strategy 策略信息
+   * @param trades 交易记录数组
+   * @returns 处理结果，包含是否触发止盈止损、更新后的持仓和余额、利润
+   */
+  private checkAndHandleStopLoss(
+    position: BigNumber,
+    balance: BigNumber,
+    entryPrice: BigNumber,
+    currentPrice: BigNumber,
+    timestamp: Date,
+    strategy: any,
+    trades: any[]
+  ): { stopped: boolean; position: BigNumber; balance: BigNumber; profit: number } {
+    // 默认返回值：未触发止盈止损，持仓和余额保持不变
+    const result = { stopped: false, position, balance, profit: 0 };
+    
+    // 只有在有持仓且有入场价格时才检查止盈止损
+    if (position.isZero() || entryPrice.isZero()) {
+      return result;
+    }
+
+    let shouldStop = false;
+    let stopType = '';
+    let stopRatio = new BigNumber(0);
+
+    if (position.isGreaterThan(0)) {
+      // 多头持仓
+      const currentRatio = currentPrice.dividedBy(entryPrice).multipliedBy(100);
+      
+      // 检查止盈
+      if (strategy.takeProfitRatio && currentRatio.isGreaterThanOrEqualTo(strategy.takeProfitRatio)) {
+        shouldStop = true;
+        stopType = 'take_profit';
+        stopRatio = new BigNumber(strategy.takeProfitRatio);
+      }
+      // 检查止损
+      else if (strategy.stopLossRatio && currentRatio.isLessThanOrEqualTo(strategy.stopLossRatio)) {
+        shouldStop = true;
+        stopType = 'stop_loss';
+        stopRatio = new BigNumber(strategy.stopLossRatio);
+      }
+    } else if (position.isLessThan(0)) {
+      // 空头持仓
+      const currentRatio = entryPrice.dividedBy(currentPrice).multipliedBy(100);
+      
+      // 检查止盈（空头：价格下跌时止盈）
+      if (strategy.takeProfitRatio && currentRatio.isGreaterThanOrEqualTo(strategy.takeProfitRatio)) {
+        shouldStop = true;
+        stopType = 'take_profit';
+        stopRatio = new BigNumber(strategy.takeProfitRatio);
+      }
+      // 检查止损（空头：价格上涨时止损）
+      else if (strategy.stopLossRatio && currentRatio.isLessThanOrEqualTo(strategy.stopLossRatio)) {
+        shouldStop = true;
+        stopType = 'stop_loss';
+        stopRatio = new BigNumber(strategy.stopLossRatio);
+      }
+    }
+
+    if (shouldStop) {
+      // 计算平仓手续费
+      const fee = position.abs().multipliedBy(currentPrice).multipliedBy(
+        position.isGreaterThan(0) ? strategy.sellFee : strategy.buyFee
+      );
+
+      // 计算利润
+      let profit: BigNumber;
+      if (position.isGreaterThan(0)) {
+        // 多头平仓利润 = (当前价格 - 入场价格) * 持仓数量 - 开仓手续费 - 平仓手续费
+        const openFee = position.multipliedBy(entryPrice).multipliedBy(strategy.buyFee);
+        profit = currentPrice.minus(entryPrice).multipliedBy(position).minus(openFee).minus(fee);
+      } else {
+        // 空头平仓利润 = (入场价格 - 当前价格) * 持仓数量 - 开仓手续费 - 平仓手续费
+        const openFee = position.abs().multipliedBy(entryPrice).multipliedBy(strategy.sellFee);
+        profit = entryPrice.minus(currentPrice).multipliedBy(position.abs()).minus(openFee).minus(fee);
+      }
+
+      // 计算利润率
+      const profitRate = position.isGreaterThan(0) 
+        ? currentPrice.minus(entryPrice).dividedBy(entryPrice).multipliedBy(100)
+            .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
+            .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
+        : entryPrice.minus(currentPrice).dividedBy(entryPrice).multipliedBy(100)
+            .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
+            .minus(new BigNumber(strategy.buyFee).multipliedBy(100));
+
+      // 更新余额
+      const newBalance = balance.plus(profit);
+
+      // 记录止盈止损交易
+      trades.push({
+        backtestId: null,
+        timestamp,
+        tradeType: stopType,
+        price: currentPrice.toNumber(),
+        amount: position.abs().toNumber(),
+        fee: fee.toNumber(),
+        profit: profit.toNumber(),
+        profitRate: profitRate.toNumber(),
+        balance: newBalance.toNumber(),
+        signalIndicatorId: null,
+      });
+
+      // 更新结果
+      result.stopped = true;
+      result.position = new BigNumber(0); // 清空持仓
+      result.balance = newBalance;
+      result.profit = profit.toNumber();
+    }
+
     return result;
   }
 }
