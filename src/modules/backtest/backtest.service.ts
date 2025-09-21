@@ -632,13 +632,14 @@ export class BacktestService {
     index: number, 
     priceData: PriceData[]
   ): boolean {
-    // 使用指标下标获取指标值
+    /* 使用指标下标获取指标值 */
     const indicatorIndex = condition.indicatorIndex;
     const indicatorResult = indicatorValues[indicatorIndex];
     if (!indicatorResult) return false;
 
-    const currentValue = indicatorResult[index];
-    const prevValue = indicatorResult[index - 1];
+    /* 从指标结果中提取当前值和前一个值，支持对象属性路径 */
+    const currentValue = this.extractValueByPath(indicatorResult[index], condition.currentValuePath);
+    const prevValue = this.extractValueByPath(indicatorResult[index - 1], condition.currentValuePath);
 
     // 根据比较类型和条件类型检测信号
     if (condition.comparisonType === 'indicator') {
@@ -651,8 +652,9 @@ export class BacktestService {
       const comparedResult = indicatorValues[comparedIndicatorIndex];
       if (!comparedResult) return false;
 
-      const currentComparedValue = comparedResult[index];
-      const prevComparedValue = comparedResult[index - 1];
+      /* 从比较指标结果中提取值，支持对象属性路径 */
+      const currentComparedValue = this.extractValueByPath(comparedResult[index], condition.comparedValuePath);
+      const prevComparedValue = this.extractValueByPath(comparedResult[index - 1], condition.comparedValuePath);
 
       if (condition.conditionType === 'crossover') {
         // 交叉条件
@@ -680,7 +682,38 @@ export class BacktestService {
     return false;
   }
 
+  /* 从对象中根据属性路径提取值，支持点分隔的深层属性访问 */
+  private extractValueByPath(obj: any, path?: string): any {
+    /* 如果没有指定路径，直接返回对象本身 */
+    if (!path || path.trim() === '') {
+      return obj;
+    }
+
+    /* 如果对象为 null 或 undefined，返回 null */
+    if (obj == null) {
+      return null;
+    }
+
+    /* 按点分隔路径，逐层访问对象属性 */
+    const pathParts = path.split('.');
+    let result = obj;
+
+    for (const part of pathParts) {
+      if (result == null || typeof result !== 'object') {
+        return null;
+      }
+      result = result[part];
+    }
+
+    return result;
+  }
+
   private compareValues(value1: any, value2: any, operator: string): boolean {
+    /* 如果任一值为 null 或 undefined，返回 false */
+    if (value1 == null || value2 == null) {
+      return false;
+    }
+
     switch (operator) {
       case '>':
         return value1 > value2;

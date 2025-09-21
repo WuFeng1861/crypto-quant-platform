@@ -16,6 +16,14 @@ export class CreateStrategyConditionDto {
   constantValue?: string;
 
   @IsString()
+  @IsOptional()
+  currentValuePath?: string;
+
+  @IsString()
+  @IsOptional()
+  comparedValuePath?: string;
+
+  @IsString()
   @IsNotEmpty()
   operator: string;
 

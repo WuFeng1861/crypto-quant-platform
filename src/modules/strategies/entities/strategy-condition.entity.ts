@@ -23,6 +23,14 @@ export class StrategyCondition {
   @Column({ name: 'constant_value', nullable: true })
   constantValue: string;
 
+  /* 当前值的属性路径，用于从复杂对象中提取值，如 'macd' 或 'signal' 或 'histogram' */
+  @Column({ name: 'current_value_path', nullable: true })
+  currentValuePath: string;
+
+  /* 比较值的属性路径，用于从复杂对象中提取值，如 'macd' 或 'signal' 或 'histogram' */
+  @Column({ name: 'compared_value_path', nullable: true })
+  comparedValuePath: string;
+
   // 比较运算符：'>', '<', '>=', '<=', '==', '!='
   @Column({ name: 'operator' })
   operator: string;
