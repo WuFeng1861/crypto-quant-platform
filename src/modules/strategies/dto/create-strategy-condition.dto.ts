@@ -43,4 +43,8 @@ export class CreateStrategyConditionDto {
   @IsOptional()
   @Min(0)
   priority?: number = 0;
+
+  @IsString()
+  @IsOptional()
+  customCode?: string;
 }

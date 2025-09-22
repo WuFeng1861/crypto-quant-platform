@@ -10,6 +10,7 @@ import { IndicatorsService } from '../indicators/indicators.service';
 import { PriceDataService } from '../price-data/price-data.service';
 import { PriceData } from '../price-data/entities/price-data.entity';
 import BigNumber from 'bignumber.js';
+import { VM } from 'vm2';
 
 @Injectable()
 export class BacktestService {
@@ -632,6 +633,11 @@ export class BacktestService {
     index: number, 
     priceData: PriceData[]
   ): boolean {
+    // 如果有自定义代码，优先使用代码逻辑
+    if (condition.customCode && condition.customCode.trim()) {
+      return this.executeCustomCode(condition.customCode, indicatorValues, index, priceData);
+    }
+
     /* 使用指标下标获取指标值 */
     const indicatorIndex = condition.indicatorIndex;
     const indicatorResult = indicatorValues[indicatorIndex];
@@ -680,6 +686,87 @@ export class BacktestService {
     }
 
     return false;
+  }
+
+  /**
+   * 执行自定义代码逻辑
+   * @param code 要执行的代码
+   * @param indicatorValues 指标值数组
+   * @param index 当前索引
+   * @param priceData 价格数据
+   * @returns 执行结果，必须返回boolean
+   */
+  private executeCustomCode(
+    code: string,
+    indicatorValues: any[],
+    index: number,
+    priceData: PriceData[]
+  ): boolean {
+    try {
+      // 创建VM实例，设置超时时间为10分钟
+      const vm = new VM({
+        timeout: 10 * 60 * 1000, // 10分钟超时
+        sandbox: {
+          // 提供给代码的上下文变量
+          indicatorValues,
+          index,
+          priceData,
+          BigNumber,
+          // 提供一些常用的数学函数
+          Math,
+          // 提供当前和前一个价格数据的快捷访问
+          current: priceData[index],
+          previous: index > 0 ? priceData[index - 1] : null,
+          // 提供计算平均值的辅助函数
+          average: (arr: number[]) => {
+            if (!arr || arr.length === 0) return 0;
+            const sum = arr.reduce((a, b) => a + b, 0);
+            return sum / arr.length;
+          },
+          // 提供计算标准差的辅助函数
+          standardDeviation: (arr: number[]) => {
+            if (!arr || arr.length === 0) return 0;
+            const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+            const squareDiffs = arr.map(value => Math.pow(value - avg, 2));
+            const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length;
+            return Math.sqrt(avgSquareDiff);
+          },
+          // 提供获取历史数据的辅助函数
+          getHistoricalData: (startIndex: number, endIndex: number) => {
+            const start = Math.max(0, startIndex);
+            const end = Math.min(priceData.length - 1, endIndex);
+            return priceData.slice(start, end + 1);
+          },
+          // 提供获取指标历史数据的辅助函数
+          getIndicatorHistoricalData: (indicatorIndex: number, startIndex: number, endIndex: number) => {
+            if (!indicatorValues[indicatorIndex]) return [];
+            const start = Math.max(0, startIndex);
+            const end = Math.min(indicatorValues[indicatorIndex].length - 1, endIndex);
+            return indicatorValues[indicatorIndex].slice(start, end + 1);
+          }
+        }
+      });
+
+      // 执行代码并获取结果
+      const result = vm.run(`
+        // 用户代码在这里执行
+        (function() {
+          ${code}
+        })()
+      `);
+
+      // 确保返回值是boolean类型
+      if (typeof result !== 'boolean') {
+        console.warn(`自定义代码返回值不是boolean类型，实际返回: ${typeof result}, 值: ${result}`);
+        return Boolean(result);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('执行自定义代码时发生错误:', error);
+      // 代码执行失败时返回false，避免影响回测
+      return false;
+    }
   }
 
   /* 从对象中根据属性路径提取值，支持点分隔的深层属性访问 */

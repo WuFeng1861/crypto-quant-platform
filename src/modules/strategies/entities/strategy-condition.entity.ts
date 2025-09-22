@@ -51,6 +51,10 @@ export class StrategyCondition {
   @Column({ default: 0 })
   priority: number;
 
+  // 自定义代码逻辑，用于替代传统的条件判断
+  @Column({ name: 'custom_code', type: 'text', nullable: true })
+  customCode: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
