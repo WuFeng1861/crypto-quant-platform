@@ -38,33 +38,33 @@ async function calculateWithPriceData(config = defaultCalculateConfig) {
     );
     
     console.log('✅ 指标计算成功!');
-    console.log('📋 计算结果:', response.data);
-    console.log(`📈 计算结果 (${response.data.length} 个数据点):`);
+    // console.log('📋 计算结果:', response.data);
+    console.log(`📈 计算结果 (${response.data.data.length} 个数据点):`);
     
     // 显示前几个和后几个结果
-    if (response.data.length > 0) {
-      const showCount = Math.min(5, response.data.length);
+    if (response.data.data.length > 0) {
+      const showCount = Math.min(5, response.data.data.length);
       
       console.log('\n前', showCount, '个结果:');
-      response.data.slice(0, showCount).forEach((item, index) => {
+      response.data.data.slice(0, showCount).forEach((item, index) => {
         console.log(`  ${index + 1}.`, JSON.stringify(item, null, 2));
       });
       
-      if (response.data.length > showCount * 2) {
+      if (response.data.data.length > showCount * 2) {
         console.log('\n...');
         console.log('\n后', showCount, '个结果:');
-        response.data.slice(-showCount).forEach((item, index) => {
-          console.log(`  ${response.data.length - showCount + index + 1}.`, JSON.stringify(item, null, 2));
+        response.data.data.slice(-showCount).forEach((item, index) => {
+          console.log(`  ${response.data.data.length - showCount + index + 1}.`, JSON.stringify(item, null, 2));
         });
-      } else if (response.data.length > showCount) {
+      } else if (response.data.data.length > showCount) {
         console.log('\n剩余结果:');
-        response.data.slice(showCount).forEach((item, index) => {
+        response.data.data.slice(showCount).forEach((item, index) => {
           console.log(`  ${showCount + index + 1}.`, JSON.stringify(item, null, 2));
         });
       }
     }
     
-    return response.data;
+    return response.data.data;
     
   } catch (error) {
     console.error('❌ 指标计算失败:');
@@ -209,7 +209,7 @@ const presetConfigs = {
     pairId: 1,
     timeframeId: 1,
     startTime: new Date('2024-01-01T00:00:00.000Z').getTime(),
-    endTime: new Date('2024-03-31T23:59:59.999Z').getTime(),
+    endTime: new Date('2024-12-30T23:59:59.999Z').getTime(),
     parameters: {
       period: 14
     }
@@ -221,11 +221,23 @@ const presetConfigs = {
     pairId: 1,
     timeframeId: 1,
     startTime: new Date('2024-01-01T00:00:00.000Z').getTime(),
-    endTime: new Date('2024-03-31T23:59:59.999Z').getTime(),
+    endTime: new Date('2024-12-30T23:59:59.999Z').getTime(),
     parameters: {
       fastPeriod: 12,
       slowPeriod: 26,
       signalPeriod: 9
+    }
+  },
+
+  // ATR
+  atr: {
+    indicatorId: 9,
+    pairId: 1,
+    timeframeId: 1,
+    startTime: new Date('2024-01-01T00:00:00.000Z').getTime(),
+    endTime: new Date('2024-12-30T23:59:59.999Z').getTime(),
+    parameters: {
+      period: 14
     }
   }
 };
