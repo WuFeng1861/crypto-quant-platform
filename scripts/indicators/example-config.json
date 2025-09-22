@@ -1,0 +1,11 @@
+{
+  "indicatorId": 1,
+  "pairId": 1,
+  "timeframeId": 1,
+  "startTime": 1704067200000,
+  "endTime": 1711900799999,
+  "parameters": {
+    "period": 20,
+    "source": "close"
+  }
+}

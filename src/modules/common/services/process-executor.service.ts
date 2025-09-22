@@ -40,13 +40,14 @@ export class ProcessExecutorService {
     
     // 如果worker执行器不存在，创建它
     const executorPath = path.join(this.workersDir, 'executor.js');
+    console.log(executorPath, fs.existsSync(executorPath), "如果worker执行器不存在，创建它");
     if (!fs.existsSync(executorPath)) {
       this.createExecutorFile(executorPath);
     }
 
     // 创建临时工作文件
     fs.writeFileSync(workerFile, code);
-
+    console.log(workerFile, code, "创建临时工作文件");
     return new Promise<R>((resolve, reject) => {
       let timeoutId: NodeJS.Timeout;
       let worker: ChildProcess;

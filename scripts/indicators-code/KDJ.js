@@ -17,15 +17,15 @@ function calculate(priceData, parameters) {
     let lowestLow = new BigNumber(Infinity);
     
     for (let j = 0; j < period; j++) {
-      const high = new BigNumber(priceData[i - j].high);
-      const low = new BigNumber(priceData[i - j].low);
+      const high = new BigNumber(priceData[i - j].highPrice);
+      const low = new BigNumber(priceData[i - j].lowPrice);
       
       if (high.isGreaterThan(highestHigh)) highestHigh = high;
       if (low.isLessThan(lowestLow)) lowestLow = low;
     }
     
     /* 计算 RSV (Raw Stochastic Value) */
-    const close = new BigNumber(priceData[i].close);
+    const close = new BigNumber(priceData[i].closePrice);
     let rsv;
     
     if (highestHigh.isEqualTo(lowestLow)) {

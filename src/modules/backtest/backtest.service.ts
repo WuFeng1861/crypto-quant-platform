@@ -141,7 +141,7 @@ export class BacktestService {
       // 使用数组下标存储指标值，这样同一指标的不同参数配置可以通过下标区分
       indicatorValues[indicatorIndex] = indicatorResult;
     }
-
+    console.log(indicatorValues);
         // 初始化提前结束信息
     let earlyStopInfo = {
       earlyStopped: false,

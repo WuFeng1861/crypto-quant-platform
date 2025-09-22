@@ -44,7 +44,7 @@ process.on('message', (data) => {
     // 打印调试信息
     console.log('Worker data:', JSON.stringify({
       priceData: data.priceData.length,
-      parameters: !!data.parameters,
+      parameters: data.parameters,
       parametersContent: data.parameters
     }));
     console.log(data.priceData.length && data.priceData[0]);

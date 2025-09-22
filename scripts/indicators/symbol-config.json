@@ -1,0 +1,11 @@
+{
+  "indicatorId": 1,
+  "symbol": "BTCUSDT",
+  "timeframeName": "1h",
+  "startTime": 1704067200000,
+  "endTime": 1711900799999,
+  "parameters": {
+    "period": 20,
+    "source": "close"
+  }
+}

@@ -152,20 +152,8 @@ export class IndicatorsService {
       throw new Error('未找到指定时间范围内的价格数据');
     }
 
-    // 转换价格数据格式，便于指标计算使用
-    const formattedPriceData = priceData.map(data => ({
-      timestamp: data.timestamp,
-      open: Number(data.openPrice),
-      high: Number(data.highPrice),
-      low: Number(data.lowPrice),
-      close: Number(data.closePrice),
-      volume: Number(data.volume),
-      volumeCurrency: Number(data.volumeCurrency),
-      volumeCurrencyQuote: Number(data.volumeCurrencyQuote)
-    }));
-
     // 计算指标
-    return this.calculateIndicator(indicatorId, formattedPriceData, parameters);
+    return this.calculateIndicator(indicatorId, priceData, parameters);
   }
 
   /**

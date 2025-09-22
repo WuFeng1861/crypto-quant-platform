@@ -11,7 +11,7 @@ function calculate(priceData, parameters) {
     /* 使用 BigNumber 进行高精度求和 */
     let sum = new BigNumber(0);
     for (let j = 0; j < period; j++) {
-      sum = sum.plus(new BigNumber(priceData[i - j].close));
+      sum = sum.plus(new BigNumber(priceData[i - j].closePrice));
     }
     
     /* 计算简单移动平均并转换为普通数值 */

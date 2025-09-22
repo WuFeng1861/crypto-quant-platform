@@ -19,13 +19,13 @@ function calculate(priceData, parameters) {
       /* 初始化快速 EMA */
       let sum = new BigNumber(0);
       for (let j = 0; j < fastPeriod; j++) {
-        sum = sum.plus(new BigNumber(priceData[i - j].close));
+        sum = sum.plus(new BigNumber(priceData[i - j].closePrice));
       }
       fastEMA = sum.dividedBy(fastPeriod);
     } else {
       /* 更新快速 EMA */
       const k = new BigNumber(2).dividedBy(fastPeriod + 1);
-      const currentPrice = new BigNumber(priceData[i].close);
+      const currentPrice = new BigNumber(priceData[i].closePrice);
       const oneMinusK = new BigNumber(1).minus(k);
       
       fastEMA = currentPrice.multipliedBy(k).plus(fastEMA.multipliedBy(oneMinusK));
@@ -41,13 +41,13 @@ function calculate(priceData, parameters) {
       /* 初始化慢速 EMA */
       let sum = new BigNumber(0);
       for (let j = 0; j < slowPeriod; j++) {
-        sum = sum.plus(new BigNumber(priceData[i - j].close));
+        sum = sum.plus(new BigNumber(priceData[i - j].closePrice));
       }
       slowEMA = sum.dividedBy(slowPeriod);
     } else {
       /* 更新慢速 EMA */
       const k = new BigNumber(2).dividedBy(slowPeriod + 1);
-      const currentPrice = new BigNumber(priceData[i].close);
+      const currentPrice = new BigNumber(priceData[i].closePrice);
       const oneMinusK = new BigNumber(1).minus(k);
       
       slowEMA = currentPrice.multipliedBy(k).plus(slowEMA.multipliedBy(oneMinusK));

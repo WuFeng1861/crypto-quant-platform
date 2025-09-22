@@ -10,9 +10,9 @@ function calculate(priceData, parameters) {
     }
     
     /* 使用 BigNumber 进行高精度计算 */
-    const high = new BigNumber(priceData[i].high);
-    const low = new BigNumber(priceData[i].low);
-    const prevClose = new BigNumber(priceData[i - 1].close);
+    const high = new BigNumber(priceData[i].highPrice);
+    const low = new BigNumber(priceData[i].lowPrice);
+    const prevClose = new BigNumber(priceData[i - 1].closePrice);
     
     /* 计算真实波幅 (True Range) */
     const tr1 = high.minus(low);
@@ -30,9 +30,9 @@ function calculate(priceData, parameters) {
         let sum = new BigNumber(0);
         
         for (let j = 0; j < period; j++) {
-          const h = new BigNumber(priceData[i - j].high);
-          const l = new BigNumber(priceData[i - j].low);
-          const pc = new BigNumber(priceData[i - j - 1].close);
+          const h = new BigNumber(priceData[i - j].highPrice);
+          const l = new BigNumber(priceData[i - j].lowPrice);
+          const pc = new BigNumber(priceData[i - j - 1].closePrice);
           
           const tr1_init = h.minus(l);
           const tr2_init = h.minus(pc).abs();

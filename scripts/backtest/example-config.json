@@ -1,0 +1,10 @@
+{
+  "strategyId": 1,
+  "pairId": 1,
+  "timeframeId": 2,
+  "startTime": "2024-01-01T00:00:00.000Z",
+  "endTime": "2024-06-30T23:59:59.999Z",
+  "initialCapital": 50000,
+  "earlyStopThreshold": 15,
+  "positionDivision": 1
+}

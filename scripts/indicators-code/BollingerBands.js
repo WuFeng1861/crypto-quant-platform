@@ -14,7 +14,7 @@ function calculate(priceData, parameters) {
     const prices = [];
     
     for (let j = 0; j < period; j++) {
-      const price = new BigNumber(priceData[i - j].close);
+      const price = new BigNumber(priceData[i - j].closePrice);
       prices.push(price);
       sum = sum.plus(price);
     }

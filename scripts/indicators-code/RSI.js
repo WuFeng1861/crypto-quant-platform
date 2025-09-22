@@ -11,8 +11,8 @@ function calculate(priceData, parameters) {
     }
     
     /* 计算价格变化 */
-    const currentPrice = new BigNumber(priceData[i].close);
-    const prevPrice = new BigNumber(priceData[i - 1].close);
+    const currentPrice = new BigNumber(priceData[i].closePrice);
+    const prevPrice = new BigNumber(priceData[i - 1].closePrice);
     const change = currentPrice.minus(prevPrice);
     
     if (i < period) {
