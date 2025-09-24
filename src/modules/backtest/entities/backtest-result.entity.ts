@@ -1,5 +1,11 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
+export enum BacktestStatus {
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
+
 @Entity('backtest_results')
 export class BacktestResult {
   @PrimaryGeneratedColumn()
@@ -58,6 +64,14 @@ export class BacktestResult {
 
   @Column({ name: 'early_stop_time', type: 'timestamp', nullable: true })
   earlyStopTime: Date;
+
+  @Column({ 
+    name: 'status', 
+    type: 'enum', 
+    enum: BacktestStatus, 
+    default: BacktestStatus.RUNNING 
+  })
+  status: BacktestStatus;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

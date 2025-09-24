@@ -9,7 +9,7 @@ export class BacktestController {
   constructor(private readonly backtestService: BacktestService) {}
 
   @Post()
-  async runBacktest(@Body() createBacktestDto: CreateBacktestDto): Promise<BacktestResult> {
+  async runBacktest(@Body() createBacktestDto: CreateBacktestDto): Promise<{ success: boolean; message: string; backtestId?: number }> {
     try {
       return await this.backtestService.runBacktest(createBacktestDto);
     } catch (error) {

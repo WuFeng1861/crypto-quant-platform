@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { BacktestResult } from './entities/backtest-result.entity';
+import { BacktestResult, BacktestStatus } from './entities/backtest-result.entity';
 import { BacktestTrade } from './entities/backtest-trade.entity';
 import { CreateBacktestDto } from './dto/create-backtest.dto';
 import { RedisService } from '../common/services/redis.service';
@@ -25,37 +25,133 @@ export class BacktestService {
     private priceDataService: PriceDataService,
   ) {}
 
-  async runBacktest(createBacktestDto: CreateBacktestDto): Promise<BacktestResult> {
-    // 获取策略
-    const strategy = await this.strategiesService.getStrategyFromRedis(createBacktestDto.strategyId);
-    if (!strategy) {
-      throw new Error(`Strategy with id ${createBacktestDto.strategyId} not found`);
+  async runBacktest(createBacktestDto: CreateBacktestDto): Promise<{ success: boolean; message: string; backtestId?: number }> {
+    try {
+      // 先验证策略是否存在
+      const strategy = await this.strategiesService.getStrategyFromRedis(createBacktestDto.strategyId);
+      if (!strategy) {
+        throw new Error(`Strategy with id ${createBacktestDto.strategyId} not found`);
+      }
+
+      // 创建一个初始的回测记录，状态为"运行中"
+      const initialBacktestResult = this.backtestResultRepository.create({
+        strategyId: createBacktestDto.strategyId,
+        pairId: createBacktestDto.pairId,
+        timeframeId: createBacktestDto.timeframeId,
+        startTime: new Date(createBacktestDto.startTime),
+        endTime: new Date(createBacktestDto.endTime),
+        initialCapital: createBacktestDto.initialCapital,
+        finalCapital: 0, // 初始值
+        totalProfit: 0, // 初始值
+        profitRate: 0, // 初始值
+        maxDrawdown: 0, // 初始值
+        totalTrades: 0, // 初始值
+        winningTrades: 0, // 初始值
+        losingTrades: 0, // 初始值
+        winRate: 0, // 初始值
+        sharpeRatio: 0, // 初始值
+        earlyStopped: false,
+        earlyStopReason: null,
+        earlyStopTime: null,
+        // 添加状态字段来标识回测状态
+        status: BacktestStatus.RUNNING,
+      });
+
+      const savedInitialResult = await this.backtestResultRepository.save(initialBacktestResult);
+
+      // 异步执行回测计算
+      this.executeBacktestAsync(createBacktestDto, savedInitialResult.id, strategy).catch(error => {
+        console.error('回测执行失败:', error);
+        // 更新回测状态为失败
+        this.updateBacktestStatus(savedInitialResult.id, BacktestStatus.FAILED, error.message);
+      });
+
+      // 立即返回成功响应
+      return {
+        success: true,
+        message: '回测已开始执行，请稍后使用 findAll 或 findOne 查询结果',
+        backtestId: savedInitialResult.id
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || '启动回测失败'
+      };
     }
+  }
 
-    // 获取价格数据
-    const priceData = await this.getPriceData(
-      createBacktestDto.pairId,
-      createBacktestDto.timeframeId,
-      new Date(createBacktestDto.startTime),
-      new Date(createBacktestDto.endTime),
-    );
+  /**
+   * 异步执行回测计算
+   */
+  private async executeBacktestAsync(
+    createBacktestDto: CreateBacktestDto, 
+    backtestId: number, 
+    strategy: any
+  ): Promise<void> {
+    try {
+      // 获取价格数据
+      const priceData = await this.getPriceData(
+        createBacktestDto.pairId,
+        createBacktestDto.timeframeId,
+        new Date(createBacktestDto.startTime),
+        new Date(createBacktestDto.endTime),
+      );
 
-    if (!priceData || priceData.length === 0) {
-      throw new Error('No price data found for the specified period');
+      if (!priceData || priceData.length === 0) {
+        throw new Error('No price data found for the specified period');
+      }
+
+      // 执行回测计算
+      const backtestResult = await this.executeBacktestCalculation(
+        strategy,
+        priceData,
+        createBacktestDto.initialCapital,
+        createBacktestDto,
+        backtestId,
+      );
+
+      // 更新回测结果
+      await this.backtestResultRepository.update(backtestId, {
+        finalCapital: backtestResult.finalCapital,
+        totalProfit: backtestResult.totalProfit,
+        profitRate: backtestResult.profitRate,
+        maxDrawdown: backtestResult.maxDrawdown,
+        totalTrades: backtestResult.totalTrades,
+        winningTrades: backtestResult.winningTrades,
+        losingTrades: backtestResult.losingTrades,
+        winRate: backtestResult.winRate,
+        sharpeRatio: backtestResult.sharpeRatio,
+        earlyStopped: backtestResult.earlyStopped,
+        earlyStopReason: backtestResult.earlyStopReason,
+        earlyStopTime: backtestResult.earlyStopTime,
+        status: BacktestStatus.COMPLETED,
+      });
+
+      // 保存回测结果到Redis
+      await this.saveBacktestToRedis(backtestId);
+
+    } catch (error) {
+      console.error('回测计算失败:', error);
+      await this.updateBacktestStatus(backtestId, BacktestStatus.FAILED, error.message);
     }
+  }
 
-    // 执行回测
-    const backtestResult = await this.executeBacktest(
-      strategy,
-      priceData,
-      createBacktestDto.initialCapital,
-      createBacktestDto,
-    );
-
-    // 保存回测结果到Redis
-    await this.saveBacktestToRedis(backtestResult.id);
-
-    return backtestResult;
+  /**
+   * 更新回测状态
+   */
+  private async updateBacktestStatus(backtestId: number, status: BacktestStatus, errorMessage?: string): Promise<void> {
+    try {
+      const updateData: any = { status };
+      if (status === BacktestStatus.FAILED && errorMessage) {
+        updateData.earlyStopReason = errorMessage;
+        updateData.earlyStopped = true;
+        updateData.earlyStopTime = new Date();
+      }
+      await this.backtestResultRepository.update(backtestId, updateData);
+    } catch (error) {
+      console.error('更新回测状态失败:', error);
+    }
   }
 
   async findAll(): Promise<BacktestResult[]> {
@@ -99,11 +195,12 @@ export class BacktestService {
     );
   }
 
-  private async executeBacktest(
+  private async executeBacktestCalculation(
     strategy: any,
     priceData: PriceData[],
     initialCapital: number,
     createBacktestDto: CreateBacktestDto,
+    backtestId: number,
   ): Promise<BacktestResult> {
     // 初始化回测状态，使用BigNumber处理所有金融计算
     let balance = new BigNumber(initialCapital);
@@ -592,14 +689,15 @@ export class BacktestService {
       0 : 
       avgReturn.dividedBy(stdReturn).toNumber();
 
-    // 创建回测结果
-    const backtestResult = this.backtestResultRepository.create({
-      strategyId: createBacktestDto.strategyId,
-      pairId: createBacktestDto.pairId,
-      timeframeId: createBacktestDto.timeframeId,
-      startTime: new Date(createBacktestDto.startTime),
-      endTime: new Date(createBacktestDto.endTime),
-      initialCapital: initialCapital,
+    // 保存交易记录
+    for (const trade of trades) {
+      trade.backtestId = backtestId;
+    }
+    
+    await this.backtestTradeRepository.save(trades);
+
+    // 返回计算结果
+    return {
       finalCapital: finalCapital.toNumber(),
       totalProfit: totalProfit.toNumber(),
       profitRate: profitRate.toNumber(),
@@ -613,18 +711,7 @@ export class BacktestService {
       earlyStopped: earlyStopInfo.earlyStopped,
       earlyStopReason: earlyStopInfo.earlyStopReason,
       earlyStopTime: earlyStopInfo.earlyStopTime,
-    });
-
-    const savedResult = await this.backtestResultRepository.save(backtestResult);
-
-    // 保存交易记录
-    for (const trade of trades) {
-      trade.backtestId = savedResult.id;
-    }
-    
-    await this.backtestTradeRepository.save(trades);
-
-    return savedResult;
+    } as any;
   }
 
   private checkCondition(

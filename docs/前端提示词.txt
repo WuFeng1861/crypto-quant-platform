@@ -1,0 +1,322 @@
+@/docs/前端提示词.txt 在这个文件中生成这个项目的前端对应的提示词。我希望前端项目能够满足一下条件，你需要分析整个项目的功能的结构，以及项目的api（目录中的api没有及时更新，你需要分析项目自己理解最新的项目qpi），生成更好更完整的ai提示词
+1. 使用vue3+tailwind完成整个项目的基础架构
+2. 需要有白天黑夜两种模式
+3. 要求有中英文切换（默认中文）
+4. 注意整个项目统一封装了接口输出格式
+5. 可以创建指标，需要能够带参数
+6. 自动获取全部指标数据（名称和id和参数等等，界面上需要展示和用于后面使用）、可用于回测的交易对数据（那些交易对trading-pairs、哪些时间timeframes）、全部的策略数据（id、手续费、买卖类型、等等）
+7. 可以使用指标使用用户自己的数据（calculate，需要告诉用户我需要的数据格式和我们price-data的格式需要一致）或者使用指定的系统数据（calculateWithPriceData）
+8. 可以创建策略，需要能够处理使用的指标、手续费、买入卖出、等等其他的所有属性，注意conditions中的各个属性和2中逻辑处理方案都要能够兼容，而且如果使用代码来处理condition逻辑需要highlight.js来完成代码高亮展示
+9. 可以创建回测，需要能够选择策略、交易对、时间、开始结束时间、手续费、买卖类型、等等其他所有属性，创建回测会返回回测id，后续可以使用findOne查看回测状态，每30秒前端往后端查询一次，如果完成则提示进行查看
+10. 查看全部的回测记录和结果和交易情况
+
+
+
+# 加密货币量化回测平台 - 前端开发提示词
+
+## 项目概述
+你需要为一个加密货币量化回测平台开发前端界面，该平台提供指标创建、策略构建、回测执行等功能。后端基于 NestJS，提供完整的 RESTful API。
+
+## 技术栈要求
+- **框架**: Vue 3 + Composition API
+- **样式**: Tailwind CSS
+- **构建工具**: Vite
+- **HTTP客户端**: Axios
+- **代码高亮**: highlight.js (用于策略条件的自定义代码)
+- **图表库**: Chart.js 或 ECharts (用于回测结果可视化)
+- **UI组件**: 可选择 Element Plus 或 Ant Design Vue
+- **状态管理**: Pinia
+- **路由**: Vue Router
+- **国际化**: Vue I18n
+
+## 核心功能需求
+
+### 1. 基础架构
+- 使用 Vue 3 + Tailwind CSS 完成整个项目
+- 实现白天/黑夜两种主题模式切换
+- 支持中英文切换（默认中文）
+- 响应式设计，支持桌面和移动端
+
+### 2. API 接口封装
+后端统一使用以下响应格式：
+```typescript
+interface ApiResponse<T> {
+  code: number;        // HTTP状态码
+  message: string;     // 响应消息
+  data: T;            // 实际数据
+  timestamp: number;   // 时间戳
+}
+```
+
+需要封装 axios 实例，统一处理：
+- 请求拦截器：添加认证头、loading状态
+- 响应拦截器：统一错误处理、数据提取
+- 基础URL配置：默认 `http://localhost:3099`
+
+### 3. 指标管理模块
+
+#### 3.1 指标列表页面 (`/indicators`)
+- **API**: `GET /indicators` - 获取所有指标
+- 显示指标列表：ID、名称、描述、创建时间
+- 支持搜索和筛选
+- 每个指标显示参数数量和类型
+
+#### 3.2 指标创建页面 (`/indicators/create`)
+- **API**: `POST /indicators` - 创建指标
+- 表单字段：
+  ```typescript
+  {
+    name: string;              // 指标名称
+    description?: string;      // 描述
+    calculationCode: string;   // 计算代码（使用highlight.js高亮显示）
+    parameters: Array<{       // 参数列表
+      name: string;
+      description?: string;
+      defaultValue?: string;
+      paramType: 'number' | 'string' | 'boolean';
+    }>;
+  }
+  ```
+- 代码编辑器支持JavaScript语法高亮
+- 动态添加/删除参数
+- 参数类型选择器
+
+#### 3.3 指标计算功能
+提供两种计算方式：
+
+**用户数据计算**:
+- **API**: `POST /indicators/:id/calculate`
+- 用户上传价格数据，格式需与系统一致：
+  ```typescript
+  interface PriceData {
+    timestamp: number;        // 时间戳
+    openPrice: number;       // 开盘价
+    highPrice: number;       // 最高价
+    lowPrice: number;        // 最低价
+    closePrice: number;      // 收盘价
+    volume: number;          // 成交量
+    volumeCurrency: number;  // 成交量(基础货币)
+    volumeCurrencyQuote: number; // 成交量(计价货币)
+  }
+  ```
+
+**系统数据计算**:
+- **API**: `POST /indicators/:id/calculate-with-data`
+- 选择交易对、时间框架、时间范围
+- 系统自动获取价格数据进行计算
+
+### 4. 基础数据管理
+
+#### 4.1 交易对管理 (`/trading-pairs`)
+- **API**: `GET /price-data/trading-pairs` - 获取所有交易对
+- **API**: `POST /price-data/trading-pairs` - 创建交易对
+- 显示：ID、交易对符号、基础货币、计价货币
+
+#### 4.2 时间框架管理 (`/timeframes`)
+- **API**: `GET /price-data/timeframes` - 获取所有时间框架
+- **API**: `POST /price-data/timeframes` - 创建时间框架
+- 显示：ID、名称、描述、时间间隔
+
+### 5. 策略管理模块
+
+#### 5.1 策略列表页面 (`/strategies`)
+- **API**: `GET /strategies/with-details/all` - 获取所有策略详情
+- 显示策略卡片：名称、描述、仓位类型、手续费、指标数量、条件数量
+- 支持搜索和筛选
+
+#### 5.2 策略创建页面 (`/strategies/create`)
+- **API**: `POST /strategies` - 创建策略
+- **API**: `GET /indicators` - 获取可用指标列表
+
+表单结构：
+```typescript
+{
+  name: string;                    // 策略名称
+  description?: string;            // 描述
+  positionType: 'long' | 'short' | 'both'; // 仓位类型
+  buyFee: number;                 // 买入手续费 (0-1)
+  sellFee: number;                // 卖出手续费 (0-1)
+  liquidationThreshold: number;   // 爆仓阈值 (0-100)
+  takeProfitRatio?: number;       // 止盈比例
+  stopLossRatio?: number;         // 止损比例
+  indicators: Array<{             // 使用的指标
+    indicatorId: number;
+    priority?: number;
+    parameters: Array<{
+      parameterId: number;
+      value: string;
+    }>;
+  }>;
+  conditions: Array<{             // 交易条件
+    indicatorIndex: number;       // 指标索引
+    comparisonType: 'indicator' | 'constant';
+    comparedIndicatorIndex?: number;
+    constantValue?: string;
+    currentValuePath?: string;    // 当前值路径
+    comparedValuePath?: string;   // 比较值路径
+    operator: string;             // 操作符 (>, <, >=, <=, ==, !=)
+    conditionType: string;        // 条件类型
+    action: 'buy' | 'sell' | 'none';
+    group?: number;               // 条件组
+    priority?: number;            // 优先级
+    customCode?: string;          // 自定义代码（使用highlight.js高亮）
+  }>;
+}
+```
+
+#### 5.3 策略创建界面设计要点
+- **指标选择器**: 多选下拉框，显示指标名称和参数
+- **参数配置**: 动态表单，根据选择的指标显示对应参数
+- **条件构建器**: 
+  - 支持可视化条件构建
+  - 支持自定义代码模式（使用highlight.js）
+  - 条件分组和优先级设置
+  - 逻辑关系说明（组内AND，组间OR）
+- **实时预览**: 显示策略配置摘要
+
+### 6. 回测管理模块
+
+#### 6.1 回测创建页面 (`/backtest/create`)
+- **API**: `POST /backtest` - 创建回测（异步执行）
+- **API**: `GET /strategies` - 获取策略列表
+- **API**: `GET /price-data/trading-pairs` - 获取交易对
+- **API**: `GET /price-data/timeframes` - 获取时间框架
+
+表单字段：
+```typescript
+{
+  strategyId: number;           // 策略ID
+  pairId: number;              // 交易对ID
+  timeframeId: number;         // 时间框架ID
+  startTime: string;           // 开始时间 (ISO格式)
+  endTime: string;             // 结束时间 (ISO格式)
+  initialCapital: number;      // 初始资金
+  earlyStopThreshold?: number; // 提前停止阈值 (默认10%)
+  positionDivision?: number;   // 仓位分割 (默认1)
+}
+```
+
+回测创建成功后返回：
+```typescript
+{
+  success: boolean;
+  message: string;
+  backtestId?: number;
+}
+```
+
+#### 6.2 回测状态监控
+- 创建回测后，每30秒查询一次状态
+- **API**: `GET /backtest/:id` - 获取回测详情
+- 状态类型：
+  - `running`: 运行中 - 显示进度条和等待提示
+  - `completed`: 已完成 - 显示查看结果按钮
+  - `failed`: 失败 - 显示错误信息
+
+#### 6.3 回测列表页面 (`/backtest`)
+- **API**: `GET /backtest` - 获取所有回测记录
+- 显示：ID、策略名称、交易对、时间范围、状态、收益率、创建时间
+- 支持状态筛选和排序
+- 实时状态更新（WebSocket或定时刷新）
+
+#### 6.4 回测详情页面 (`/backtest/:id`)
+- **API**: `GET /backtest/:id` - 获取回测详情
+- **API**: `GET /backtest/:id/trades` - 获取交易记录
+
+显示内容：
+- **基本信息**: 策略、交易对、时间范围、初始资金
+- **收益指标**: 最终资金、总收益、收益率、最大回撤、夏普比率
+- **交易统计**: 总交易次数、盈利次数、亏损次数、胜率
+- **收益曲线图**: 使用图表库展示资金变化
+- **交易记录表**: 时间、类型、价格、数量、手续费、盈亏
+
+### 7. 数据格式说明
+
+#### 7.1 价格数据格式
+用户上传数据时需要遵循以下格式：
+```typescript
+interface PriceData {
+  timestamp: number;           // 时间戳（毫秒）
+  openPrice: number;          // 开盘价
+  highPrice: number;          // 最高价
+  lowPrice: number;           // 最低价
+  closePrice: number;         // 收盘价
+  volume: number;             // 成交量
+  volumeCurrency: number;     // 成交量(基础货币)
+  volumeCurrencyQuote: number; // 成交量(计价货币)
+}
+```
+
+#### 7.2 回测状态枚举
+```typescript
+enum BacktestStatus {
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
+```
+
+### 8. UI/UX 设计要求
+
+#### 8.1 主题切换
+- 提供明暗主题切换按钮
+- 使用 Tailwind CSS 的 dark: 前缀
+- 主题状态持久化到 localStorage
+
+#### 8.2 国际化
+- 默认中文，支持英文切换
+- 所有文本内容支持国际化
+- 语言选择持久化
+
+#### 8.3 响应式设计
+- 桌面端：侧边栏导航 + 主内容区
+- 移动端：底部导航 + 全屏内容
+- 表格在移动端转换为卡片布局
+
+#### 8.4 交互体验
+- 加载状态：骨架屏或加载动画
+- 错误处理：友好的错误提示
+- 成功反馈：操作成功的提示信息
+- 确认对话框：删除等危险操作
+
+### 9. 页面路由结构
+```
+/                          # 首页/仪表板
+/indicators               # 指标列表
+/indicators/create        # 创建指标
+/indicators/:id           # 指标详情
+/strategies              # 策略列表
+/strategies/create       # 创建策略
+/strategies/:id          # 策略详情
+/backtest                # 回测列表
+/backtest/create         # 创建回测
+/backtest/:id            # 回测详情
+/trading-pairs           # 交易对管理
+/timeframes             # 时间框架管理
+/settings               # 系统设置
+```
+
+### 10. 状态管理
+使用 Pinia 管理以下状态：
+- **用户状态**: 主题、语言偏好
+- **指标状态**: 指标列表、当前选中指标
+- **策略状态**: 策略列表、当前编辑策略
+- **回测状态**: 回测列表、运行中的回测
+- **基础数据**: 交易对、时间框架列表
+
+### 11. 开发注意事项
+1. **API错误处理**: 统一处理HTTP错误和业务错误
+2. **数据验证**: 前端表单验证与后端DTO保持一致
+3. **性能优化**: 大列表使用虚拟滚动，图表数据分页加载
+4. **代码高亮**: 使用highlight.js为JavaScript代码提供语法高亮
+5. **实时更新**: 回测状态使用轮询或WebSocket实时更新
+6. **数据缓存**: 合理使用缓存减少API调用
+7. **类型安全**: 使用TypeScript定义所有接口类型
+
+### 12. 部署配置
+- 开发环境：`npm run dev`
+- 生产构建：`npm run build`
+- 环境变量配置：API_BASE_URL等
+- Docker化部署支持
+
+这个前端项目将为用户提供完整的量化交易策略开发和回测体验，界面友好，功能完整，性能优秀。
