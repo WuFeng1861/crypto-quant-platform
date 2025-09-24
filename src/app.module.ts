@@ -21,6 +21,8 @@ import { PriceDataModule } from './modules/price-data/price-data.module';
       database: process.env.DB_DATABASE || 'crypto_data',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV !== 'production',
+      // logging: true, // 启用SQL日志
+      // logger: 'advanced-console', // 使用高级控制台日志
     }),
     CommonModule,
     IndicatorsModule,

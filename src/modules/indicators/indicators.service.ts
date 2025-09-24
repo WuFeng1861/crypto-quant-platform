@@ -8,6 +8,11 @@ import { RedisService } from '../common/services/redis.service';
 import { ProcessExecutorService } from '../common/services/process-executor.service';
 import { PriceDataService } from '../price-data/price-data.service';
 
+// 扩展指标类型，包含参数信息
+export type IndicatorWithParameters = Indicator & {
+  parameters?: IndicatorParameter[];
+};
+
 @Injectable()
 export class IndicatorsService {
   constructor(
@@ -20,7 +25,7 @@ export class IndicatorsService {
     private priceDataService: PriceDataService,
   ) {}
 
-  async create(createIndicatorDto: CreateIndicatorDto): Promise<Indicator> {
+  async create(createIndicatorDto: CreateIndicatorDto): Promise<IndicatorWithParameters> {
     // 创建指标
     const indicator = this.indicatorRepository.create({
       name: createIndicatorDto.name,
@@ -31,6 +36,7 @@ export class IndicatorsService {
     const savedIndicator = await this.indicatorRepository.save(indicator);
 
     // 创建指标参数
+    let savedParameters: IndicatorParameter[] = [];
     if (createIndicatorDto.parameters && createIndicatorDto.parameters.length > 0) {
       const parameters = createIndicatorDto.parameters.map(param => {
         return this.parameterRepository.create({
@@ -42,34 +48,64 @@ export class IndicatorsService {
         });
       });
 
-      await this.parameterRepository.save(parameters);
+      savedParameters = await this.parameterRepository.save(parameters);
     }
 
-    // 保存到Redis
-    await this.saveIndicatorToRedis(savedIndicator.id);
+    // 清除相关缓存
+    await this.clearIndicatorCache(savedIndicator.id);
 
-    return savedIndicator;
+    // 返回包含参数的完整指标信息
+    return {
+      ...savedIndicator,
+      parameters: savedParameters,
+    };
   }
 
-  async findAll(): Promise<Indicator[]> {
+  async findAll(): Promise<IndicatorWithParameters[]> {
     const cacheKey = 'indicators:all';
     
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
-        return this.indicatorRepository.find();
+        const indicators = await this.indicatorRepository.find();
+        // 获取每个指标的参数
+        const indicatorsWithParams = await Promise.all(
+          indicators.map(async (indicator) => {
+            const parameters = await this.parameterRepository.find({ 
+              where: { indicatorId: indicator.id } 
+            });
+            return {
+              ...indicator,
+              parameters,
+            };
+          })
+        );
+        return indicatorsWithParams;
       },
       3600 // 缓存1小时
     );
   }
 
-  async findOne(id: number): Promise<Indicator> {
-    const cacheKey = `indicator:basic:${id}`;
+  async findOne(id: number): Promise<IndicatorWithParameters> {
+    const cacheKey = `indicator:detail:${id}`;
     
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
-        return this.indicatorRepository.findOne({ where: { id } });
+        const indicator = await this.indicatorRepository.findOne({ where: { id } });
+        if (!indicator) {
+          return null;
+        }
+        
+        // 获取指标参数
+        const parameters = await this.parameterRepository.find({ 
+          where: { indicatorId: id } 
+        });
+        
+        return {
+          ...indicator,
+          parameters,
+        };
       },
       3600 // 缓存1小时
     );
@@ -261,5 +297,18 @@ export class IndicatorsService {
       },
       3600 // 缓存1小时
     );
+  }
+
+  /**
+   * 清除指标相关缓存
+   */
+  private async clearIndicatorCache(indicatorId: number): Promise<void> {
+    // 清除单个指标缓存
+    await this.redisService.delete(`indicator:detail:${indicatorId}`);
+    await this.redisService.delete(`indicator:${indicatorId}`);
+    await this.redisService.delete(`indicator_params_list:${indicatorId}`);
+    
+    // 清除所有指标列表缓存
+    await this.redisService.delete('indicators:all');
   }
 }
