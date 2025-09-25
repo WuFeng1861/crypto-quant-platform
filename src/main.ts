@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { TransformInterceptor } from './modules/common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './modules/common/filters/http-exception.filter';
+import { StartupService } from './modules/system/startup.service';
 
 async function bootstrap() {
   try {
@@ -26,6 +27,12 @@ async function bootstrap() {
     
     await app.listen(port);
     console.log(`应用已成功启动，监听端口: ${port}`);
+    
+    // 应用启动后执行初始化检查
+    console.log('执行启动初始化检查...');
+    const startupService = app.get(StartupService);
+    await startupService.onApplicationBootstrap();
+    console.log('启动初始化检查完成');
   } catch (error) {
     console.error('应用启动失败，错误详情:');
     console.error(error);

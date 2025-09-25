@@ -251,15 +251,15 @@ export class BacktestService {
     for (let i = 1; i < priceData.length; i++) {  // 从1开始，因为我们需要前一个时间点的数据
       const candle = priceData[i];
       // 确保时间戳是有效的Date对象
-      let timestamp: Date;
+      let timestamp: Date = new Date(Number(candle.timestamp));
       if (typeof candle.timestamp === 'number') {
         timestamp = new Date(candle.timestamp);
       } else if (candle.timestamp as any instanceof Date) {
         timestamp = candle.timestamp;
       } else {
         // 如果时间戳格式不正确，使用当前时间作为备用
-        console.warn(`Invalid timestamp format for candle: ${candle.timestamp}, using current time as fallback`);
-        timestamp = new Date();
+        console.warn(`Invalid timestamp type: ${typeof candle.timestamp}`, `Invalid timestamp format for candle: ${candle.timestamp}, using current time as fallback`);
+        timestamp = new Date(Number(candle.timestamp));
       }
       
       // 验证创建的Date对象是否有效

@@ -6,6 +6,7 @@ import { IndicatorsModule } from './modules/indicators/indicators.module';
 import { StrategiesModule } from './modules/strategies/strategies.module';
 import { BacktestModule } from './modules/backtest/backtest.module';
 import { PriceDataModule } from './modules/price-data/price-data.module';
+import { SystemModule } from './modules/system/system.module';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { PriceDataModule } from './modules/price-data/price-data.module';
       database: process.env.DB_DATABASE || 'crypto_data',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: process.env.NODE_ENV !== 'production',
-      // logging: true, // 启用SQL日志
+      logging: false, // 启用SQL日志
       // logger: 'advanced-console', // 使用高级控制台日志
     }),
     CommonModule,
@@ -29,6 +30,7 @@ import { PriceDataModule } from './modules/price-data/price-data.module';
     StrategiesModule,
     BacktestModule,
     PriceDataModule,
+    SystemModule,
   ],
 })
 export class AppModule {}
