@@ -13,7 +13,7 @@ export class BacktestTrade {
   @Index()
   timestamp: Date;
 
-  @Column({ name: 'trade_type', type: 'enum', enum: ['buy', 'sell'] })
+  @Column({ name: 'trade_type', type: 'enum', enum: ['buy', 'sell', 'liquidation', 'take_profit', 'stop_loss'] })
   tradeType: string;
 
   @Column({ type: 'decimal', precision: 20, scale: 8 })

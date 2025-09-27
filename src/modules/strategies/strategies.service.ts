@@ -6,6 +6,7 @@ import { StrategyIndicator } from './entities/strategy-indicator.entity';
 import { StrategyIndicatorParam } from './entities/strategy-indicator-param.entity';
 import { StrategyCondition } from './entities/strategy-condition.entity';
 import { CreateStrategyDto } from './dto/create-strategy.dto';
+import { UpdateStrategyDto } from './dto/update-strategy.dto';
 import { RedisService } from '../common/services/redis.service';
 import { IndicatorsService } from '../indicators/indicators.service';
 import { StrategyIndicatorWithParams } from './interfaces/strategy-indicator-with-params.interface';
@@ -306,5 +307,299 @@ export class StrategiesService {
       },
       3600 // 缓存1小时
     );
+  }
+
+  /**
+   * 更新策略
+   * @param id 策略ID
+   * @param updateStrategyDto 更新数据
+   * @returns 更新后的策略
+   */
+  async update(id: number, updateStrategyDto: UpdateStrategyDto): Promise<Strategy> {
+    const strategy = await this.strategyRepository.findOne({ where: { id } });
+    if (!strategy) {
+      throw new NotFoundException(`Strategy with ID ${id} not found`);
+    }
+
+    // 更新策略基本信息
+    if (updateStrategyDto.name !== undefined) strategy.name = updateStrategyDto.name;
+    if (updateStrategyDto.description !== undefined) strategy.description = updateStrategyDto.description;
+    if (updateStrategyDto.positionType !== undefined) strategy.positionType = updateStrategyDto.positionType;
+    if (updateStrategyDto.buyFee !== undefined) strategy.buyFee = updateStrategyDto.buyFee;
+    if (updateStrategyDto.sellFee !== undefined) strategy.sellFee = updateStrategyDto.sellFee;
+    if (updateStrategyDto.liquidationThreshold !== undefined) strategy.liquidationThreshold = updateStrategyDto.liquidationThreshold;
+    if (updateStrategyDto.takeProfitRatio !== undefined) strategy.takeProfitRatio = updateStrategyDto.takeProfitRatio;
+    if (updateStrategyDto.stopLossRatio !== undefined) strategy.stopLossRatio = updateStrategyDto.stopLossRatio;
+
+    const updatedStrategy = await this.strategyRepository.save(strategy);
+
+    // 更新指标
+    if (updateStrategyDto.indicators) {
+      await this.updateStrategyIndicators(id, updateStrategyDto.indicators);
+    }
+
+    // 更新条件
+    if (updateStrategyDto.conditions) {
+      await this.updateStrategyConditions(id, updateStrategyDto.conditions);
+    }
+
+    // 清除缓存
+    await this.clearStrategyCache(id);
+
+    return updatedStrategy;
+  }
+
+  /**
+   * 删除策略
+   * @param id 策略ID
+   */
+  async remove(id: number): Promise<void> {
+    const strategy = await this.strategyRepository.findOne({ where: { id } });
+    if (!strategy) {
+      throw new NotFoundException(`Strategy with ID ${id} not found`);
+    }
+
+    // 删除策略指标参数
+    const strategyIndicators = await this.strategyIndicatorRepository.find({ where: { strategyId: id } });
+    for (const indicator of strategyIndicators) {
+      await this.strategyIndicatorParamRepository.delete({ strategyIndicatorId: indicator.id });
+    }
+
+    // 删除策略指标
+    await this.strategyIndicatorRepository.delete({ strategyId: id });
+
+    // 删除策略条件
+    await this.strategyConditionRepository.delete({ strategyId: id });
+
+    // 删除策略
+    await this.strategyRepository.delete(id);
+
+    // 清除缓存
+    await this.clearStrategyCache(id);
+    await this.clearAllStrategiesCache();
+  }
+
+  /**
+   * 更新策略指标
+   * @param strategyId 策略ID
+   * @param indicatorId 指标ID
+   * @param updateData 更新数据
+   */
+  async updateStrategyIndicator(
+    strategyId: number, 
+    indicatorId: number, 
+    updateData: { priority?: number; parameters?: Array<{ parameterId: number; value: string }> }
+  ): Promise<void> {
+    const strategyIndicator = await this.strategyIndicatorRepository.findOne({
+      where: { strategyId, indicatorId }
+    });
+
+    if (!strategyIndicator) {
+      throw new NotFoundException(`Strategy indicator not found`);
+    }
+
+    // 更新优先级
+    if (updateData.priority !== undefined) {
+      strategyIndicator.priority = updateData.priority;
+      await this.strategyIndicatorRepository.save(strategyIndicator);
+    }
+
+    // 更新参数
+    if (updateData.parameters) {
+      // 删除现有参数
+      await this.strategyIndicatorParamRepository.delete({ strategyIndicatorId: strategyIndicator.id });
+
+      // 添加新参数
+      const params = updateData.parameters.map(param => {
+        return this.strategyIndicatorParamRepository.create({
+          strategyIndicatorId: strategyIndicator.id,
+          parameterId: param.parameterId,
+          value: param.value,
+        });
+      });
+
+      await this.strategyIndicatorParamRepository.save(params);
+    }
+
+    // 清除缓存
+    await this.clearStrategyCache(strategyId);
+  }
+
+  /**
+   * 删除策略指标
+   * @param strategyId 策略ID
+   * @param indicatorId 指标ID
+   */
+  async removeStrategyIndicator(strategyId: number, indicatorId: number): Promise<void> {
+    const strategyIndicator = await this.strategyIndicatorRepository.findOne({
+      where: { strategyId, indicatorId }
+    });
+
+    if (!strategyIndicator) {
+      throw new NotFoundException(`Strategy indicator not found`);
+    }
+
+    // 删除指标参数
+    await this.strategyIndicatorParamRepository.delete({ strategyIndicatorId: strategyIndicator.id });
+
+    // 删除指标
+    await this.strategyIndicatorRepository.delete({ id: strategyIndicator.id });
+
+    // 清除缓存
+    await this.clearStrategyCache(strategyId);
+  }
+
+  /**
+   * 更新策略条件
+   * @param strategyId 策略ID
+   * @param conditionId 条件ID
+   * @param updateData 更新数据
+   */
+  async updateStrategyCondition(strategyId: number, conditionId: number, updateData: any): Promise<void> {
+    const condition = await this.strategyConditionRepository.findOne({
+      where: { id: conditionId, strategyId }
+    });
+
+    if (!condition) {
+      throw new NotFoundException(`Strategy condition not found`);
+    }
+
+    // 更新条件字段
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] !== undefined && condition.hasOwnProperty(key)) {
+        condition[key] = updateData[key];
+      }
+    });
+
+    await this.strategyConditionRepository.save(condition);
+
+    // 清除缓存
+    await this.clearStrategyCache(strategyId);
+  }
+
+  /**
+   * 删除策略条件
+   * @param strategyId 策略ID
+   * @param conditionId 条件ID
+   */
+  async removeStrategyCondition(strategyId: number, conditionId: number): Promise<void> {
+    const condition = await this.strategyConditionRepository.findOne({
+      where: { id: conditionId, strategyId }
+    });
+
+    if (!condition) {
+      throw new NotFoundException(`Strategy condition not found`);
+    }
+
+    await this.strategyConditionRepository.delete({ id: conditionId });
+
+    // 清除缓存
+    await this.clearStrategyCache(strategyId);
+  }
+
+  /**
+   * 批量更新策略指标
+   * @param strategyId 策略ID
+   * @param indicators 指标数据
+   */
+  private async updateStrategyIndicators(strategyId: number, indicators: any[]): Promise<void> {
+    // 获取现有指标
+    const existingIndicators = await this.strategyIndicatorRepository.find({ where: { strategyId } });
+
+    // 处理更新和新增
+    for (const indicatorDto of indicators) {
+      if (indicatorDto.id) {
+        // 更新现有指标
+        const existing = existingIndicators.find(i => i.id === indicatorDto.id);
+        if (existing) {
+          existing.priority = indicatorDto.priority || existing.priority;
+          await this.strategyIndicatorRepository.save(existing);
+
+          // 更新参数
+          if (indicatorDto.parameters) {
+            await this.strategyIndicatorParamRepository.delete({ strategyIndicatorId: existing.id });
+            const params = indicatorDto.parameters.map(param => {
+              return this.strategyIndicatorParamRepository.create({
+                strategyIndicatorId: existing.id,
+                parameterId: param.parameterId,
+                value: param.value,
+              });
+            });
+            await this.strategyIndicatorParamRepository.save(params);
+          }
+        }
+      } else {
+        // 新增指标
+        const newIndicator = this.strategyIndicatorRepository.create({
+          strategyId,
+          indicatorId: indicatorDto.indicatorId,
+          priority: indicatorDto.priority || 0,
+        });
+
+        const savedIndicator = await this.strategyIndicatorRepository.save(newIndicator);
+
+        // 添加参数
+        if (indicatorDto.parameters) {
+          const params = indicatorDto.parameters.map(param => {
+            return this.strategyIndicatorParamRepository.create({
+              strategyIndicatorId: savedIndicator.id,
+              parameterId: param.parameterId,
+              value: param.value,
+            });
+          });
+          await this.strategyIndicatorParamRepository.save(params);
+        }
+      }
+    }
+
+    // 删除不在更新列表中的指标
+    const updateIds = indicators.filter(i => i.id).map(i => i.id);
+    const toDelete = existingIndicators.filter(i => !updateIds.includes(i.id));
+    
+    for (const indicator of toDelete) {
+      await this.strategyIndicatorParamRepository.delete({ strategyIndicatorId: indicator.id });
+      await this.strategyIndicatorRepository.delete({ id: indicator.id });
+    }
+  }
+
+  /**
+   * 批量更新策略条件
+   * @param strategyId 策略ID
+   * @param conditions 条件数据
+   */
+  private async updateStrategyConditions(strategyId: number, conditions: any[]): Promise<void> {
+    // 获取现有条件
+    const existingConditions = await this.strategyConditionRepository.find({ where: { strategyId } });
+
+    // 处理更新和新增
+    for (const conditionDto of conditions) {
+      if (conditionDto.id) {
+        // 更新现有条件
+        const existing = existingConditions.find(c => c.id === conditionDto.id);
+        if (existing) {
+          Object.keys(conditionDto).forEach(key => {
+            if (conditionDto[key] !== undefined && existing.hasOwnProperty(key) && key !== 'id') {
+              existing[key] = conditionDto[key];
+            }
+          });
+          await this.strategyConditionRepository.save(existing);
+        }
+      } else {
+        // 新增条件
+        const newCondition = this.strategyConditionRepository.create({
+          strategyId,
+          ...conditionDto,
+        });
+        await this.strategyConditionRepository.save(newCondition);
+      }
+    }
+
+    // 删除不在更新列表中的条件
+    const updateIds = conditions.filter(c => c.id).map(c => c.id);
+    const toDelete = existingConditions.filter(c => !updateIds.includes(c.id));
+    
+    for (const condition of toDelete) {
+      await this.strategyConditionRepository.delete({ id: condition.id });
+    }
   }
 }
