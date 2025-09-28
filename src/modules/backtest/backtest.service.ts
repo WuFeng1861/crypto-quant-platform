@@ -688,7 +688,11 @@ export class BacktestService {
       const shortProfit = position.isLessThan(0) && entryPrice ? 
         entryPrice.minus(currentPrice).multipliedBy(position.abs()) : 
         new BigNumber(0);
-      const currentBalance = balance.plus(shortProfit);
+      // 计算多仓价值 
+      const longProfit = position.isGreaterThan(0) && entryPrice ? 
+        currentPrice.multipliedBy(position.abs()) : 
+        new BigNumber(0);
+      const currentBalance = balance.plus(shortProfit).plus(longProfit);
       
       if (currentBalance.isGreaterThan(peakBalance)) {
         peakBalance = currentBalance;
@@ -716,7 +720,7 @@ export class BacktestService {
     const finalShortProfit = position.isLessThan(0) && entryPrice ? 
       entryPrice.minus(finalPrice).multipliedBy(position.abs()) : 
       new BigNumber(0);
-    const finalCapital = balance.plus(finalShortProfit);
+    const finalCapital = balance.plus(finalShortProfit).plus(finalPrice.multipliedBy(position));
     
     // 计算总收益和收益率
     const initialCapitalBN = new BigNumber(initialCapital);
