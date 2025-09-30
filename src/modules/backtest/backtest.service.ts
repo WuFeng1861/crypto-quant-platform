@@ -92,8 +92,8 @@ export class BacktestService {
    * 异步执行回测计算
    */
   private async executeBacktestAsync(
-    createBacktestDto: CreateBacktestDto, 
-    backtestId: number, 
+    createBacktestDto: CreateBacktestDto,
+    backtestId: number,
     strategy: any
   ): Promise<void> {
     try {
@@ -184,7 +184,7 @@ export class BacktestService {
   ): Promise<PriceData[] | null> {
     // 使用Redis服务的getOrSet方法，处理缓存击穿
     const cacheKey = `price_data:${pairId}:${timeframeId}:${startTime.getTime()}:${endTime.getTime()}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -224,7 +224,7 @@ export class BacktestService {
     const indicatorValues = [];
     for (let indicatorIndex = 0; indicatorIndex < strategy.indicators.length; indicatorIndex++) {
       const indicator = strategy.indicators[indicatorIndex];
-      
+
       // 获取指标参数
       const parameters = {};
       // 通过parameterId获取参数名称，然后设置参数值
@@ -247,7 +247,7 @@ export class BacktestService {
       indicatorValues[indicatorIndex] = indicatorResult;
     }
     console.log(indicatorValues);
-        // 初始化提前结束信息
+    // 初始化提前结束信息
     let earlyStopInfo = {
       earlyStopped: false,
       earlyStopReason: null,
@@ -268,44 +268,44 @@ export class BacktestService {
         // console.warn(`Invalid timestamp type: ${typeof candle.timestamp}`, `Invalid timestamp format for candle: ${candle.timestamp}, using current time as fallback`);
         timestamp = new Date(Number(candle.timestamp));
       }
-      
+
       // 验证创建的Date对象是否有效
       if (isNaN(timestamp.getTime())) {
         console.warn(`Invalid timestamp value: ${candle.timestamp}, using current time as fallback`);
         timestamp = new Date();
       }
       const prevCandle = priceData[i - 1];
-    
+
       // 获取提前结束阈值（默认为10%）
       const earlyStopThreshold = createBacktestDto.earlyStopThreshold || 10;
       const earlyStopThresholdDecimal = new BigNumber(earlyStopThreshold).dividedBy(100);
-      
+
       // 检查资金是否已经低于初始资金的阈值且没有持仓，如果是则提前结束回测
       if (balance.isLessThan(new BigNumber(initialCapital).multipliedBy(earlyStopThresholdDecimal)) && position.isZero()) {
         console.log(`回测提前结束: 资金已低于初始资金的${earlyStopThreshold}%，当前资金: ${balance.toNumber()}, 初始资金: ${initialCapital}`);
-        
+
         // 记录提前结束的信息
         earlyStopInfo = {
           earlyStopped: true,
           earlyStopReason: `资金已低于初始资金的${earlyStopThreshold}%`,
           earlyStopTime: timestamp
         };
-        
+
         // 提前结束回测
         break;
       }
-      
+
       // 检查是否爆仓
       const liquidationResult = this.checkAndHandleLiquidation(
-        position, 
-        balance, 
-        entryPrice, 
+        position,
+        balance,
+        entryPrice,
         new BigNumber(candle.closePrice),
-        timestamp, 
-        strategy, 
+        timestamp,
+        strategy,
         trades
       );
-      
+
       if (liquidationResult.liquidated) {
         position = liquidationResult.position;
         balance = liquidationResult.balance;
@@ -376,9 +376,9 @@ export class BacktestService {
           // 检查组内所有条件是否满足（AND逻辑）
           for (const condition of conditions) {
             const conditionSatisfied = this.checkCondition(
-              condition, 
-              indicatorValues, 
-              i, 
+              condition,
+              indicatorValues,
+              i,
               priceData
             );
 
@@ -386,7 +386,7 @@ export class BacktestService {
               groupSatisfied = false;
               break;
             }
-            
+
             // 记录第一个满足的条件ID
             if (!groupConditionId) {
               groupConditionId = condition.id;
@@ -411,9 +411,9 @@ export class BacktestService {
           // 检查组内所有条件是否满足（AND逻辑）
           for (const condition of conditions) {
             const conditionSatisfied = this.checkCondition(
-              condition, 
-              indicatorValues, 
-              i, 
+              condition,
+              indicatorValues,
+              i,
               priceData
             );
 
@@ -421,7 +421,7 @@ export class BacktestService {
               groupSatisfied = false;
               break;
             }
-            
+
             // 记录第一个满足的条件ID
             if (!groupConditionId) {
               groupConditionId = condition.id;
@@ -441,17 +441,17 @@ export class BacktestService {
       if (buySignal && (position.isLessThanOrEqualTo(0) || strategy.positionType === 'both')) {
         // 买入逻辑：只有在没有多头仓位或策略允许双向交易时才买入
         const price = new BigNumber(candle.closePrice);
-        
+
         // 获取仓位分配参数（默认为1，表示全仓交易）
         const positionDivision = createBacktestDto.positionDivision || 1;
-        
+
         // 计算交易数量，考虑仓位分配
         let amount;
         // 用于计算买入数量的价格
         const tempPrice = price.multipliedBy(strategy.buyFee).plus(price);
         // 用于计算买入手续费的价格
         const buyFeePrice = price.multipliedBy(strategy.buyFee);
-        
+
         if (position.isZero()) {
           // 开仓时按仓位分配
           amount = balance.dividedBy(tempPrice).dividedBy(positionDivision);
@@ -466,22 +466,22 @@ export class BacktestService {
           const totalValue = positionValue.plus(balance);
           // 计算理想加仓金额
           const idealAddAmount = totalValue.dividedBy(positionDivision);
-          
+
           // 如果余额大于理想加仓金额，则使用理想加仓金额
           // 否则全部投入
-          const addAmount = balance.isGreaterThan(idealAddAmount) ? 
-            idealAddAmount : 
+          const addAmount = balance.isGreaterThan(idealAddAmount) ?
+            idealAddAmount :
             balance;
-            
+
           // 计算可以购买的数量
           amount = addAmount.dividedBy(tempPrice);
         }
 
         // 如果amount < 0.000000001 则不交易
         if (!amount.isLessThan(0.000000001)) {
-          
+
           const fee = amount.multipliedBy(buyFeePrice);
-          
+
           // 检查交易后余额是否会为负
           balance = balance.minus(amount.multipliedBy(tempPrice));
           // if (newBalance.isLessThan(0)) {
@@ -494,11 +494,11 @@ export class BacktestService {
           //   // 更新余额和持仓
           //   balance = newBalance;
           // }
-          
+
           // 保存旧持仓数量，用于判断操作类型
           const oldPosition = position.toNumber();
           position = position.plus(amount);
-        
+
           if (oldPosition === 0) {
             // 开仓
             entryPrice = price;
@@ -508,10 +508,10 @@ export class BacktestService {
             const entryFee = amount.abs().multipliedBy(entryPrice).multipliedBy(strategy.sellFee);
             const exitFee = amount.abs().multipliedBy(buyFeePrice);
             const netProfit = grossProfit.minus(entryFee).minus(exitFee);
-            
+
             if (netProfit.isGreaterThan(0)) winningTrades++;
             else losingTrades++;
-            
+
             // 平空仓时：余额 = 余额 + 之前的卖出价的金额（卖出手续费已在开仓时处理）
             // 注意：手续费在每次计算中已经处理，前面处理了平空仓买入的金额，现在要加上空仓卖出的金额
             balance = balance.plus(entryPrice.multipliedBy(amount.abs()));
@@ -530,20 +530,20 @@ export class BacktestService {
           // 记录交易
           let tradeProfit = null;
           let tradeProfitRate = null;
-          
+
           // 如果是平空仓，计算利润
           if (oldPosition < 0 && position.isGreaterThanOrEqualTo(0)) {
             tradeProfit = entryPrice.minus(price).multipliedBy(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())))
               .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.sellFee))
               .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(price).multipliedBy(strategy.buyFee))
               .toNumber();
-              
+
             tradeProfitRate = entryPrice.minus(price).dividedBy(entryPrice).multipliedBy(100)
               .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
               .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
               .toNumber();
           }
-              
+
           trades.push({
             backtestId: null, // 稍后填充
             timestamp,
@@ -558,21 +558,21 @@ export class BacktestService {
           });
         }
       }
-      
+
       if (sellSignal && (position.isGreaterThan(0) || (strategy.positionType === 'both' && balance.isGreaterThan(0)))) {
         // 卖出逻辑：只有在持有多头仓位或策略允许双向交易且有足够余额时才卖出
         const price = new BigNumber(candle.closePrice);
-        
+
         // 获取仓位分配参数（默认为1，表示全仓交易）
         const positionDivision = createBacktestDto.positionDivision || 1;
-        
+
         // 计算交易数量，考虑仓位分配
         let amount;
         // 用于计算卖出数量的价格包含手续费和保证金
         const tempPrice = price.multipliedBy(strategy.sellFee).plus(price);
         // 用于计算卖出手续费的价格
         const sellFeePrice = price.multipliedBy(strategy.sellFee);
-        
+
         if (position.isZero()) {
           // 开空仓时按仓位分配，但需要有足够余额
           const maxShortAmount = balance.dividedBy(tempPrice).dividedBy(positionDivision);
@@ -594,10 +594,10 @@ export class BacktestService {
           const availableBalance = balance.minus(entryPrice.multipliedBy(position.abs()));
 
           // 确保加仓金额不超过可用余额
-          const addAmount = totalValue.isGreaterThan(0) && availableBalance.isGreaterThan(idealAddAmount) ? 
-            idealAddAmount : 
+          const addAmount = totalValue.isGreaterThan(0) && availableBalance.isGreaterThan(idealAddAmount) ?
+            idealAddAmount :
             BigNumber.max(0, availableBalance);
-            
+
           // 计算可以卖出的数量
           amount = addAmount.dividedBy(tempPrice);
         }
@@ -605,7 +605,7 @@ export class BacktestService {
         // 如果amount < 0.000000001 则不交易
         if (!amount.isLessThan(0.000000001)) {
           const fee = amount.multipliedBy(sellFeePrice);
-          
+
           // 做空时余额不会增加，只会减少手续费, 但是要考虑到做空需要支付的保证金
           // 检查余额是否足够支付手续费
           // if (balance.isLessThan(fee)) {
@@ -613,15 +613,15 @@ export class BacktestService {
           //   const maxAmount = balance.dividedBy(tempPrice);
           //   amount = BigNumber.max(0, maxAmount);
           // }
-          
+
           // 更新余额（空仓都减少手续费，平多的时候再去添加卖出金额），
           const adjustedFee = amount.multipliedBy(sellFeePrice);
           balance = balance.minus(adjustedFee);
-          
+
           // 保存旧持仓数量，用于判断操作类型
           const oldPosition = position.toNumber();
           position = position.minus(amount);
-          
+
           if (oldPosition === 0) {
             // 开空仓
             entryPrice = price;
@@ -631,10 +631,10 @@ export class BacktestService {
             const entryFee = amount.multipliedBy(entryPrice).multipliedBy(strategy.buyFee);
             const exitFee = amount.multipliedBy(sellFeePrice);
             const netProfit = grossProfit.minus(entryFee).minus(exitFee);
-            
+
             if (netProfit.isGreaterThan(0)) winningTrades++;
             else losingTrades++;
-            
+
             // 平多仓时：余额 = 余额 + 平仓金额 - 平仓手续费（买入手续费已在开仓时处理）
             // 注意：买入手续费在开多仓时已经处理，这里只处理卖出平仓的手续费, 平仓手续费在上面已处理
             balance = balance.plus(price.multipliedBy(amount));
@@ -653,20 +653,20 @@ export class BacktestService {
           // 记录交易
           let tradeProfit = null;
           let tradeProfitRate = null;
-          
+
           // 如果是平多仓，计算利润
           if (oldPosition > 0 && position.isLessThanOrEqualTo(0)) {
             tradeProfit = price.minus(entryPrice).multipliedBy(new BigNumber(Math.min(oldPosition, amount.toNumber())))
               .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.buyFee))
               .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(price).multipliedBy(strategy.sellFee))
               .toNumber();
-              
+
             tradeProfitRate = price.minus(entryPrice).dividedBy(entryPrice).multipliedBy(100)
               .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
               .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
               .toNumber();
           }
-              
+
           trades.push({
             backtestId: null, // 稍后填充
             timestamp,
@@ -685,30 +685,30 @@ export class BacktestService {
       // 更新最大回撤
       const currentPrice = new BigNumber(candle.closePrice);
       // 计算空仓收益 = (开仓价格 - 当前价格) * 仓位数量
-      const shortProfit = position.isLessThan(0) && entryPrice ? 
-        entryPrice.minus(currentPrice).multipliedBy(position.abs()) : 
+      const shortProfit = position.isLessThan(0) && entryPrice ?
+        entryPrice.minus(currentPrice).multipliedBy(position.abs()) :
         new BigNumber(0);
       // 计算多仓价值 
-      const longProfit = position.isGreaterThan(0) && entryPrice ? 
-        currentPrice.multipliedBy(position.abs()) : 
+      const longProfit = position.isGreaterThan(0) && entryPrice ?
+        currentPrice.multipliedBy(position.abs()) :
         new BigNumber(0);
       const currentBalance = balance.plus(shortProfit).plus(longProfit);
-      
+
       if (currentBalance.isGreaterThan(peakBalance)) {
         peakBalance = currentBalance;
       }
-      
-      const drawdown = peakBalance.isZero() ? 
-        new BigNumber(0) : 
+
+      const drawdown = peakBalance.isZero() ?
+        new BigNumber(0) :
         peakBalance.minus(currentBalance).dividedBy(peakBalance).multipliedBy(100);
-        
+
       if (drawdown.isGreaterThan(maxDrawdown)) {
         maxDrawdown = drawdown.toNumber();
       }
 
       // 记录每日收益率
-      const dailyReturn = new BigNumber(initialCapital).isZero() ? 
-        new BigNumber(0) : 
+      const dailyReturn = new BigNumber(initialCapital).isZero() ?
+        new BigNumber(0) :
         currentBalance.minus(initialCapital).dividedBy(initialCapital);
       returns.push(dailyReturn.toNumber());
     }
@@ -717,31 +717,31 @@ export class BacktestService {
     const finalCandle = priceData[priceData.length - 1];
     const finalPrice = new BigNumber(finalCandle.closePrice);
     // 计算空仓收益 = (开仓价格 - 最终价格) * 仓位数量
-    const finalShortProfit = position.isLessThan(0) && entryPrice ? 
-      entryPrice.minus(finalPrice).multipliedBy(position.abs()) : 
+    const finalShortProfit = position.isLessThan(0) && entryPrice ?
+      entryPrice.minus(finalPrice).multipliedBy(position.abs()) :
       new BigNumber(0);
     const finalCapital = balance.plus(finalShortProfit).plus(finalPrice.multipliedBy(position));
-    
+
     // 计算总收益和收益率
     const initialCapitalBN = new BigNumber(initialCapital);
     const totalProfit = finalCapital.minus(initialCapitalBN);
-    const profitRate = initialCapitalBN.isZero() ? 
-      new BigNumber(0) : 
+    const profitRate = initialCapitalBN.isZero() ?
+      new BigNumber(0) :
       totalProfit.dividedBy(initialCapitalBN).multipliedBy(100);
-    
+
     // 计算胜率
     const totalTrades = winningTrades + losingTrades;
-    const winRate = totalTrades > 0 ? 
-      new BigNumber(winningTrades).dividedBy(totalTrades).multipliedBy(100).toNumber() : 
+    const winRate = totalTrades > 0 ?
+      new BigNumber(winningTrades).dividedBy(totalTrades).multipliedBy(100).toNumber() :
       0;
-    
+
     // 计算夏普比率
     let avgReturn = new BigNumber(0);
     if (returns.length > 0) {
       const sumReturns = returns.reduce((sum, r) => sum.plus(r), new BigNumber(0));
       avgReturn = sumReturns.dividedBy(returns.length);
     }
-    
+
     let stdReturn = new BigNumber(0);
     if (returns.length > 0) {
       const sumSquaredDiffs = returns.reduce((sum, r) => {
@@ -750,9 +750,9 @@ export class BacktestService {
       }, new BigNumber(0));
       stdReturn = sumSquaredDiffs.dividedBy(returns.length).sqrt();
     }
-    
-    const sharpeRatio = stdReturn.isZero() ? 
-      0 : 
+
+    const sharpeRatio = stdReturn.isZero() ?
+      0 :
       avgReturn.dividedBy(stdReturn).toNumber();
 
     // 保存交易记录
@@ -761,8 +761,8 @@ export class BacktestService {
     }
     console.log(
       'trades', trades.length,
-      'backtestId', backtestId, 
-      'initialCapital', initialCapital, 
+      'backtestId', backtestId,
+      'initialCapital', initialCapital,
       'finalCapital', finalCapital
     );
     // 保存交易记录到txt中
@@ -789,9 +789,9 @@ export class BacktestService {
   }
 
   private checkCondition(
-    condition: any, 
-    indicatorValues: any[], 
-    index: number, 
+    condition: any,
+    indicatorValues: any[],
+    index: number,
     priceData: PriceData[]
   ): boolean {
     // 如果有自定义代码，优先使用代码逻辑
@@ -839,7 +839,7 @@ export class BacktestService {
     } else if (condition.comparisonType === 'constant') {
       // 与常量比较
       const constantValue = parseFloat(condition.constantValue);
-      
+
       if (condition.conditionType === 'crossover') {
         // 交叉条件
         if (condition.operator === '>') {
@@ -1013,13 +1013,13 @@ export class BacktestService {
         if (!backtest) {
           return null;
         }
-        
+
         // 获取交易记录
-        const trades = await this.backtestTradeRepository.find({ 
+        const trades = await this.backtestTradeRepository.find({
           where: { backtestId },
           order: { timestamp: 'ASC' }
         });
-        
+
         // 返回完整的回测对象
         return {
           ...backtest,
@@ -1029,7 +1029,7 @@ export class BacktestService {
       3600 // 缓存1小时
     );
   }
-  
+
   /**
    * 检查并处理爆仓情况
    * @param position 当前持仓
@@ -1052,30 +1052,40 @@ export class BacktestService {
   ): { liquidated: boolean; position: BigNumber; balance: BigNumber } {
     // 默认返回值：未爆仓，持仓和余额保持不变
     const result = { liquidated: false, position, balance };
-    
+
     // 只检查空仓的爆仓情况
     if (position.isLessThan(0)) {
       // 计算当前浮动亏损
       const entryValue = position.abs().multipliedBy(entryPrice);
       const currentValue = position.abs().multipliedBy(currentPrice);
       const unrealizedLoss = entryValue.minus(currentValue);
-      
+
       // 获取策略的爆仓阈值（默认为90%）
       const liquidationThreshold = strategy.liquidationThreshold || 90;
       const liquidationThresholdDecimal = new BigNumber(liquidationThreshold).dividedBy(100);
-      
+
       // 如果浮动亏损超过账户余额的阈值，触发爆仓
       if (unrealizedLoss.isGreaterThan(balance.multipliedBy(liquidationThresholdDecimal))) {
         // 计算爆仓后的实际余额
         // 1. 计算平仓时的手续费
         const liquidationFee = position.abs().multipliedBy(currentPrice).multipliedBy(strategy.buyFee);
-        
+
         // 2. 计算平仓后的余额 = 当前余额 - 浮动亏损 - 平仓手续费
         const remainingBalance = BigNumber.maximum(
           new BigNumber(0),
           balance.minus(unrealizedLoss).minus(liquidationFee)
         );
-        
+        console.log('爆仓触发条件：', {
+          unrealizedLoss: unrealizedLoss.toNumber(),
+          liquidationThresholdDecimal: liquidationThresholdDecimal.toNumber(),
+          liquidationFee: liquidationFee.toNumber(),
+          remainingBalance: remainingBalance.toNumber(),
+          threshold: balance.multipliedBy(liquidationThresholdDecimal).toNumber(),
+          balance: balance.toNumber(),
+          liquidationThreshold: liquidationThreshold,
+          trigger: unrealizedLoss.isGreaterThan(balance.multipliedBy(liquidationThresholdDecimal)),
+        });
+
         // 记录爆仓交易
         trades.push({
           backtestId: null,
@@ -1089,14 +1099,14 @@ export class BacktestService {
           balance: remainingBalance.toNumber(),
           signalIndicatorId: null,
         });
-        
+
         // 更新结果：已爆仓，持仓清零，余额为剩余金额
         result.liquidated = true;
         result.position = new BigNumber(0);
         result.balance = remainingBalance;
       }
     }
-    
+
     return result;
   }
 
@@ -1122,7 +1132,7 @@ export class BacktestService {
   ): { stopped: boolean; position: BigNumber; balance: BigNumber; profit: number } {
     // 默认返回值：未触发止盈止损，持仓和余额保持不变
     const result = { stopped: false, position, balance, profit: 0 };
-    
+
     // 只有在有持仓且有入场价格时才检查止盈止损
     if (position.isZero() || entryPrice.isZero()) {
       return result;
@@ -1135,7 +1145,7 @@ export class BacktestService {
     if (position.isGreaterThan(0)) {
       // 多头持仓
       const currentRatio = currentPrice.dividedBy(entryPrice).multipliedBy(100);
-      
+
       // 检查止盈
       if (strategy.takeProfitRatio && currentRatio.isGreaterThanOrEqualTo(strategy.takeProfitRatio)) {
         shouldStop = true;
@@ -1151,7 +1161,7 @@ export class BacktestService {
     } else if (position.isLessThan(0)) {
       // 空头持仓
       const currentRatio = entryPrice.dividedBy(currentPrice).multipliedBy(100);
-      
+
       // 检查止盈（空头：价格下跌时止盈）
       if (strategy.takeProfitRatio && currentRatio.isGreaterThanOrEqualTo(strategy.takeProfitRatio)) {
         shouldStop = true;
@@ -1185,13 +1195,13 @@ export class BacktestService {
       }
 
       // 计算利润率
-      const profitRate = position.isGreaterThan(0) 
+      const profitRate = position.isGreaterThan(0)
         ? currentPrice.minus(entryPrice).dividedBy(entryPrice).multipliedBy(100)
-            .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
-            .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
+          .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
+          .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
         : entryPrice.minus(currentPrice).dividedBy(entryPrice).multipliedBy(100)
-            .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
-            .minus(new BigNumber(strategy.buyFee).multipliedBy(100));
+          .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
+          .minus(new BigNumber(strategy.buyFee).multipliedBy(100));
 
       // 更新余额
       const newBalance = balance.plus(profit);
