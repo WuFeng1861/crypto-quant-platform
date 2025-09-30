@@ -87,6 +87,7 @@ export class StrategiesService {
           action: conditionDto.action,
           priority: conditionDto.priority || 1,
           group: conditionDto.group || 1,
+          customCode: conditionDto.customCode || '',
         });
 
         await this.strategyConditionRepository.save(strategyCondition);
