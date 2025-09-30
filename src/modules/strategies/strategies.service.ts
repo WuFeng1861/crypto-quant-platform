@@ -24,7 +24,7 @@ export class StrategiesService {
     private strategyConditionRepository: Repository<StrategyCondition>,
     private redisService: RedisService,
     private indicatorsService: IndicatorsService,
-  ) {}
+  ) { }
 
   async create(createStrategyDto: CreateStrategyDto): Promise<Strategy> {
     // 创建策略
@@ -85,7 +85,8 @@ export class StrategiesService {
           operator: conditionDto.operator,
           conditionType: conditionDto.conditionType,
           action: conditionDto.action,
-          priority: conditionDto.priority || 0,
+          priority: conditionDto.priority || 1,
+          group: conditionDto.group || 1,
         });
 
         await this.strategyConditionRepository.save(strategyCondition);
@@ -103,7 +104,7 @@ export class StrategiesService {
 
   async findAll(): Promise<Strategy[]> {
     const cacheKey = 'strategies:all';
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -115,7 +116,7 @@ export class StrategiesService {
 
   async findOne(id: number): Promise<Strategy> {
     const cacheKey = `strategy:basic:${id}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -131,7 +132,7 @@ export class StrategiesService {
 
   async getStrategyIndicators(strategyId: number): Promise<StrategyIndicatorWithParams[]> {
     const cacheKey = `strategy:indicators:${strategyId}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -160,7 +161,7 @@ export class StrategiesService {
 
   async getStrategyConditions(strategyId: number): Promise<StrategyCondition[]> {
     const cacheKey = `strategy:conditions:${strategyId}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -200,11 +201,11 @@ export class StrategiesService {
         if (!strategy) {
           return null;
         }
-        
+
         // 获取策略的指标和条件
         const indicators = await this.getStrategyIndicators(strategyId);
         const conditions = await this.getStrategyConditions(strategyId);
-        
+
         // 返回完整的策略对象
         return {
           ...strategy,
@@ -256,7 +257,7 @@ export class StrategiesService {
    */
   async findAllStrategiesWithIndicatorsAndConditions(): Promise<(Strategy & { indicators: StrategyIndicatorWithParams[]; conditions: StrategyCondition[] })[]> {
     const cacheKey = 'strategies:all:with-details';
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -266,7 +267,7 @@ export class StrategiesService {
         for (const strategy of strategies) {
           const indicators = await this.getStrategyIndicators(strategy.id);
           const conditions = await this.getStrategyConditions(strategy.id);
-          
+
           result.push({
             ...strategy,
             indicators,
@@ -287,7 +288,7 @@ export class StrategiesService {
    */
   async findOneStrategyWithIndicatorsAndConditions(id: number): Promise<Strategy & { indicators: StrategyIndicatorWithParams[]; conditions: StrategyCondition[] }> {
     const cacheKey = `strategy:full:${id}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -386,8 +387,8 @@ export class StrategiesService {
    * @param updateData 更新数据
    */
   async updateStrategyIndicator(
-    strategyId: number, 
-    indicatorId: number, 
+    strategyId: number,
+    indicatorId: number,
     updateData: { priority?: number; parameters?: Array<{ parameterId: number; value: string }> }
   ): Promise<void> {
     const strategyIndicator = await this.strategyIndicatorRepository.findOne({
@@ -555,7 +556,7 @@ export class StrategiesService {
     // 删除不在更新列表中的指标
     const updateIds = indicators.filter(i => i.id).map(i => i.id);
     const toDelete = existingIndicators.filter(i => !updateIds.includes(i.id));
-    
+
     for (const indicator of toDelete) {
       await this.strategyIndicatorParamRepository.delete({ strategyIndicatorId: indicator.id });
       await this.strategyIndicatorRepository.delete({ id: indicator.id });
@@ -597,7 +598,7 @@ export class StrategiesService {
     // 删除不在更新列表中的条件
     const updateIds = conditions.filter(c => c.id).map(c => c.id);
     const toDelete = existingConditions.filter(c => !updateIds.includes(c.id));
-    
+
     for (const condition of toDelete) {
       await this.strategyConditionRepository.delete({ id: condition.id });
     }
