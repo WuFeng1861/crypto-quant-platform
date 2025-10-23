@@ -7,6 +7,7 @@ import { StrategiesModule } from './modules/strategies/strategies.module';
 import { BacktestModule } from './modules/backtest/backtest.module';
 import { PriceDataModule } from './modules/price-data/price-data.module';
 import { SystemModule } from './modules/system/system.module';
+import { AiIndicatorGeneratorModule } from './modules/ai-indicator-generator/ai-indicator-generator.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SystemModule } from './modules/system/system.module';
     BacktestModule,
     PriceDataModule,
     SystemModule,
+    AiIndicatorGeneratorModule,
   ],
 })
 export class AppModule {}

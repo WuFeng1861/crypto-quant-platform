@@ -9,25 +9,25 @@ async function bootstrap() {
   try {
     console.log('正在创建NestJS应用...');
     const app = await NestFactory.create(AppModule);
-    
+
     console.log('设置全局管道...');
     app.useGlobalPipes(new ValidationPipe({ transform: true }));
-    
+
     console.log('设置全局拦截器...');
     app.useGlobalInterceptors(new TransformInterceptor());
-    
+
     console.log('设置全局异常过滤器...');
     app.useGlobalFilters(new HttpExceptionFilter());
-    
+
     console.log('启用CORS...');
     app.enableCors();
-    
-    const port = process.env.PORT || 3099;
+
+    const port = process.env.PORT || 3098;
     console.log(`尝试在端口 ${port} 上启动应用...`);
-    
+
     await app.listen(port);
     console.log(`应用已成功启动，监听端口: ${port}`);
-    
+
     // 应用启动后执行初始化检查
     console.log('执行启动初始化检查...');
     const startupService = app.get(StartupService);
