@@ -171,6 +171,7 @@ indicatorNews：新生成指标数组，每个元素必须包含（每一次都�
 indicators: 预计算指标数组，可以重复使用同一个指标但是参数不同，有时候也需要比较
 - indicatorNewsIndex: 在indicatorNews中的索引
 - parameters：指标参数数组，每个元素必须包含，没有参数位空数组
+  - name：指标参数名称
   - value：指标参数值
 conditions：数组，每个元素必须包含
 – indicatorIndex：指向 indicators 数组下标
@@ -210,4 +211,4 @@ positionType 未提及则 "both"。
   5.4 所有路径以「点号」分隔嵌套属性，但平台目前只有一层，故直接写子字段名即可，不要带引号，不要带多余层级。
 6. 输出格式
 仅返回一段合法 JSON，不要注释、不要 markdown 代码块包裹，其余任何文字都不要出现。
-【用户输入区】（把需求写在这里，越具体越好）
+【用户输入区】

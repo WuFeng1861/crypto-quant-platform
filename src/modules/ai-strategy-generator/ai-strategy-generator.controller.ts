@@ -1,38 +1,38 @@
 import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
-import { AiIndicatorGeneratorService } from './ai-indicator-generator.service';
+import { AiStrategyGeneratorService } from './ai-strategy-generator.service';
 
-@Controller('ai-indicator-generator')
-export class AiIndicatorGeneratorController {
-  constructor(private readonly aiIndicatorGeneratorService: AiIndicatorGeneratorService) { }
+@Controller('ai-strategy-generator')
+export class AiStrategyGeneratorController {
+  constructor(private readonly aiStrategyGeneratorService: AiStrategyGeneratorService) { }
 
   @Post('generate')
-  async generateIndicatorFunction(@Body() body: { userInput: string }) {
+  async generateStrategy(@Body() body: { userInput: string }) {
     try {
       if (!body.userInput || body.userInput.trim() === '') {
         throw new HttpException('用户输入不能为空', HttpStatus.BAD_REQUEST);
       }
 
-      const generatedCode = await this.aiIndicatorGeneratorService.generateIndicatorFunction(body.userInput.trim());
+      const generatedStrategy = await this.aiStrategyGeneratorService.generateStrategy(body.userInput.trim());
 
       return {
         success: true,
-        generatedCode: generatedCode,
+        generatedStrategy: generatedStrategy,
       };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
       }
       throw new HttpException(
-        `生成指标函数失败: ${error.message}`,
+        `生成策略失败: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Post('create')
-  async createAiIndicator(@Body() body: {
+  async createAiStrategy(@Body() body: {
     userInput: string;
-    indicatorName?: string;
+    strategyName?: string;
     description?: string;
   }) {
     try {
@@ -40,9 +40,9 @@ export class AiIndicatorGeneratorController {
         throw new HttpException('用户输入不能为空', HttpStatus.BAD_REQUEST);
       }
 
-      const result = await this.aiIndicatorGeneratorService.createAiIndicator(
+      const result = await this.aiStrategyGeneratorService.createAiStrategy(
         body.userInput.trim(),
-        body.indicatorName,
+        body.strategyName,
         body.description,
       );
 
@@ -52,7 +52,7 @@ export class AiIndicatorGeneratorController {
         throw error;
       }
       throw new HttpException(
-        `创建AI指标失败: ${error.message}`,
+        `创建AI策略失败: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

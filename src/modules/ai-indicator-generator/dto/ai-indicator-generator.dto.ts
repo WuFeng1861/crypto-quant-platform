@@ -18,23 +18,6 @@ export class CreateAiIndicatorDto {
   description?: string;
 }
 
-export class GenerateAndTestIndicatorDto {
-  @IsString()
-  userInput: string;
-
-  @IsString()
-  @IsOptional()
-  indicatorName?: string;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @IsArray()
-  @IsOptional()
-  testData?: any[];
-}
-
 export class GeneratedIndicatorResponseDto {
   success: boolean;
   generatedCode: string;
