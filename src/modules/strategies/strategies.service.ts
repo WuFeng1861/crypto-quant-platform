@@ -26,6 +26,10 @@ export class StrategiesService {
     private indicatorsService: IndicatorsService,
   ) { }
 
+  async findByName(name: string): Promise<Strategy | null> {
+    return this.strategyRepository.findOne({ where: { name } });
+  }
+
   async create(createStrategyDto: CreateStrategyDto): Promise<Strategy> {
     // 创建策略
     const strategy = this.strategyRepository.create({

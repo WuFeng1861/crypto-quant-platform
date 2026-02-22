@@ -1,6 +1,8 @@
 import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
 import { AiStrategyGeneratorService } from './ai-strategy-generator.service';
 
+const MAX_INPUT_LENGTH = 5000;
+
 @Controller('ai-strategy-generator')
 export class AiStrategyGeneratorController {
   constructor(private readonly aiStrategyGeneratorService: AiStrategyGeneratorService) { }
@@ -12,12 +14,16 @@ export class AiStrategyGeneratorController {
         throw new HttpException('用户输入不能为空', HttpStatus.BAD_REQUEST);
       }
 
-      const generatedStrategy = await this.aiStrategyGeneratorService.generateStrategy(body.userInput.trim());
+      if (body.userInput.length > MAX_INPUT_LENGTH) {
+        throw new HttpException(
+          `输入内容过长，请控制在${MAX_INPUT_LENGTH}字符以内`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-      return {
-        success: true,
-        generatedStrategy: generatedStrategy,
-      };
+      const result = await this.aiStrategyGeneratorService.generateStrategyWithIndicators(body.userInput.trim());
+
+      return result;
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -40,10 +46,17 @@ export class AiStrategyGeneratorController {
         throw new HttpException('用户输入不能为空', HttpStatus.BAD_REQUEST);
       }
 
+      if (body.userInput.length > MAX_INPUT_LENGTH) {
+        throw new HttpException(
+          `输入内容过长，请控制在${MAX_INPUT_LENGTH}字符以内`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const result = await this.aiStrategyGeneratorService.createAiStrategy(
         body.userInput.trim(),
-        body.strategyName,
-        body.description,
+        body.strategyName?.trim(),
+        body.description?.trim(),
       );
 
       return result;

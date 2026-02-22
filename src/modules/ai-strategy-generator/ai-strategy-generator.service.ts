@@ -6,6 +6,8 @@ import { IndicatorsService } from '../indicators/indicators.service';
 import { CreateStrategyDto } from '../strategies/dto/create-strategy.dto';
 import { StrategyIndicatorDto } from '../strategies/dto/create-strategy.dto';
 import { StrategyIndicatorParamDto } from '../strategies/dto/create-strategy.dto';
+import { VM } from 'vm2';
+import { StrategyDataValidator } from './validators/strategy-data.validator';
 
 export interface AiStrategyResponse {
   name: string;
@@ -52,11 +54,126 @@ export interface AiStrategyResponse {
 
 @Injectable()
 export class AiStrategyGeneratorService {
+  private readonly DANGEROUS_PATTERNS = [
+    /eval\s*\(/,
+    /Function\s*\(/,
+    /require\s*\(/,
+    /import\s+/,
+    /process\./,
+    /fs\./,
+    /child_process/,
+    /exec\s*\(/,
+    /spawn\s*\(/,
+  ];
+
   constructor(
     private readonly httpService: HttpService,
     private readonly strategiesService: StrategiesService,
     private readonly indicatorsService: IndicatorsService,
   ) { }
+
+  /**
+   * 验证生成的代码安全性
+   */
+  private validateGeneratedCode(code: string): { valid: boolean; reason?: string } {
+    for (const pattern of this.DANGEROUS_PATTERNS) {
+      if (pattern.test(code)) {
+        return { valid: false, reason: `代码包含不安全的操作: ${pattern.source}` };
+      }
+    }
+    return { valid: true };
+  }
+
+  /**
+   * 验证代码能否正常执行
+   */
+  private validateCodeExecution(code: string, parameters: Record<string, any> = {}): { valid: boolean; reason?: string } {
+    try {
+      const testPriceData = [
+        { timestamp: 1000, openPrice: 100, highPrice: 105, lowPrice: 95, closePrice: 102, volume: 1000 },
+        { timestamp: 2000, openPrice: 102, highPrice: 108, lowPrice: 100, closePrice: 106, volume: 1200 },
+        { timestamp: 3000, openPrice: 106, highPrice: 110, lowPrice: 104, closePrice: 108, volume: 1100 },
+        { timestamp: 4000, openPrice: 108, highPrice: 112, lowPrice: 106, closePrice: 110, volume: 1300 },
+        { timestamp: 5000, openPrice: 110, highPrice: 115, lowPrice: 108, closePrice: 112, volume: 1400 },
+      ];
+
+      const BigNumber = require('bignumber.js');
+      const sandbox = {
+        BigNumber: BigNumber,
+        console: { log: () => {} },
+      };
+
+      const vm = new VM({
+        timeout: 5000,
+        sandbox,
+      });
+
+      vm.run(`
+        ${code}
+        
+        const result = calculate(${JSON.stringify(testPriceData)}, ${JSON.stringify(parameters)});
+      `);
+
+      return { valid: true };
+    } catch (error) {
+      return { valid: false, reason: `代码执行错误: ${error.message}` };
+    }
+  }
+
+  /**
+   * 验证策略名称格式
+   */
+  private validateStrategyName(name: string): boolean {
+    return /^[A-Za-z_\u4e00-\u9fa5][A-Za-z0-9_\u4e00-\u9fa5]*$/.test(name);
+  }
+
+  /**
+   * 验证所有指标代码的安全性和可执行性
+   */
+  private validateIndicatorCodes(indicatorNews: Array<{
+    name: string;
+    description?: string;
+    code: string;
+    parameters: Array<{
+      name: string;
+      description?: string;
+      paramType: string;
+      defaultValue?: string;
+    }>;
+  }>): { valid: boolean; reason?: string } {
+    for (let i = 0; i < indicatorNews.length; i++) {
+      const indicator = indicatorNews[i];
+      
+      const securityValidation = this.validateGeneratedCode(indicator.code);
+      if (!securityValidation.valid) {
+        return { 
+          valid: false, 
+          reason: `指标 "${indicator.name}" 代码安全验证失败: ${securityValidation.reason}` 
+        };
+      }
+
+      const params = {};
+      indicator.parameters.forEach(param => {
+        const value = param.defaultValue || '';
+        if (param.paramType === 'number') {
+          params[param.name] = Number(value) || 0;
+        } else if (param.paramType === 'boolean') {
+          params[param.name] = value === 'true';
+        } else {
+          params[param.name] = value;
+        }
+      });
+
+      const executionValidation = this.validateCodeExecution(indicator.code, params);
+      if (!executionValidation.valid) {
+        return { 
+          valid: false, 
+          reason: `指标 "${indicator.name}" 代码执行验证失败: ${executionValidation.reason}` 
+        };
+      }
+    }
+    return { valid: true };
+  }
 
   /**
    * 读取策略AI提示词文件
@@ -122,6 +239,7 @@ export class AiStrategyGeneratorService {
       }
 
       // 解析AI返回的JSON
+      console.log('AI原始响应:', aiResponse);
       try {
         const parsedResponse = JSON.parse(aiResponse);
         return parsedResponse;
@@ -143,14 +261,134 @@ export class AiStrategyGeneratorService {
   }
 
   /**
+   * 生成策略并将指标写入数据库
+   */
+  async generateStrategyWithIndicators(userInput: string) {
+    const aiStrategy = await this.generateStrategy(userInput);
+
+    const dataValidation = StrategyDataValidator.validateStrategy(aiStrategy);
+    if (!dataValidation.valid) {
+      throw new HttpException(
+        `AI生成的策略数据不完整: ${dataValidation.errors.join('; ')}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const aiStrategyWithDefaults = StrategyDataValidator.applyDefaults(aiStrategy);
+
+    const codeValidation = this.validateIndicatorCodes(aiStrategyWithDefaults.indicatorNews);
+    if (!codeValidation.valid) {
+      throw new HttpException(
+        `策略代码安全验证失败: ${codeValidation.reason}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const createdIndicators = [];
+    for (const indicatorData of aiStrategyWithDefaults.indicatorNews) {
+      const createIndicatorDto = {
+        name: indicatorData.name,
+        description: indicatorData.description,
+        calculationCode: indicatorData.code,
+        parameters: indicatorData.parameters.map(param => ({
+          name: param.name,
+          paramType: param.paramType,
+          defaultValue: param.defaultValue,
+          description: param.description,
+        })),
+      };
+
+      const createdIndicator = await this.indicatorsService.create(createIndicatorDto);
+      createdIndicators.push(createdIndicator);
+    }
+
+    const indicators = aiStrategyWithDefaults.indicators.map((indicatorRef, index) => {
+      const indicatorNewsIndex = indicatorRef.indicatorNewsIndex;
+      if (indicatorNewsIndex >= 0 && indicatorNewsIndex < createdIndicators.length) {
+        const createdIndicator = createdIndicators[indicatorNewsIndex];
+        return {
+          id: createdIndicator.id,
+          name: createdIndicator.name,
+          description: createdIndicator.description,
+          indicatorNewsIndex: indicatorNewsIndex,
+          parameters: indicatorRef.parameters.map(param => {
+            const parameter = createdIndicator.parameters.find(p => p.name === param.name);
+            return {
+              id: parameter?.id,
+              name: param.name,
+              value: param.value,
+            };
+          }),
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    const conditions = aiStrategyWithDefaults.conditions.map(condition => ({
+      indicatorIndex: condition.indicatorIndex,
+      comparisonType: condition.comparisonType,
+      comparedIndicatorIndex: condition.comparedIndicatorIndex,
+      constantValue: condition.constantValue,
+      currentValuePath: condition.currentValuePath,
+      comparedValuePath: condition.comparedValuePath,
+      operator: condition.operator,
+      conditionType: condition.conditionType,
+      action: condition.action,
+      group: condition.group,
+      priority: condition.priority,
+      customCode: condition.customCode,
+    }));
+
+    return {
+      success: true,
+      generatedStrategy: {
+        name: aiStrategyWithDefaults.name,
+        description: aiStrategyWithDefaults.description,
+        positionType: aiStrategyWithDefaults.positionType || 'both',
+        buyFee: aiStrategyWithDefaults.buyFee || 0.001,
+        sellFee: aiStrategyWithDefaults.sellFee || 0.001,
+        liquidationThreshold: aiStrategyWithDefaults.liquidationThreshold || 90,
+        takeProfitRatio: aiStrategyWithDefaults.takeProfitRatio,
+        stopLossRatio: aiStrategyWithDefaults.stopLossRatio,
+        indicators: indicators,
+        conditions: conditions,
+      },
+      createdIndicators: createdIndicators,
+    };
+  }
+
+  /**
    * 创建AI生成的策略
    */
   async createAiStrategy(userInput: string, strategyName?: string, description?: string) {
     try {
-      // 生成策略
+      const finalName = strategyName || `AI_Strategy_${Date.now()}`;
+
+      if (strategyName && !this.validateStrategyName(strategyName)) {
+        throw new HttpException(
+          '策略名称格式不正确，只能包含字母、数字、下划线和中文，且不能以数字开头',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const existingStrategy = await this.strategiesService.findByName(finalName);
+      if (existingStrategy) {
+        throw new HttpException(
+          `策略名称 '${finalName}' 已存在，请使用其他名称`,
+          HttpStatus.CONFLICT,
+        );
+      }
+
       const aiStrategy = await this.generateStrategy(userInput);
 
-      // 1. 先创建AI生成的新指标
+      const codeValidation = this.validateIndicatorCodes(aiStrategy.indicatorNews);
+      if (!codeValidation.valid) {
+        throw new HttpException(
+          `策略代码安全验证失败: ${codeValidation.reason}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const createdIndicators = [];
       for (const indicatorData of aiStrategy.indicatorNews) {
         const createIndicatorDto = {
@@ -169,9 +407,8 @@ export class AiStrategyGeneratorService {
         createdIndicators.push(createdIndicator);
       }
 
-      // 2. 构建策略DTO
       const createStrategyDto: CreateStrategyDto = {
-        name: strategyName || aiStrategy.name,
+        name: finalName,
         description: description || aiStrategy.description,
         positionType: aiStrategy.positionType || 'both',
         buyFee: aiStrategy.buyFee || 0.001,
@@ -183,7 +420,6 @@ export class AiStrategyGeneratorService {
         conditions: [],
       };
 
-      // 3. 构建策略指标关联
       for (const indicatorRef of aiStrategy.indicators) {
         const indicatorIndex = indicatorRef.indicatorNewsIndex;
         if (indicatorIndex >= 0 && indicatorIndex < createdIndicators.length) {
@@ -192,7 +428,6 @@ export class AiStrategyGeneratorService {
             indicatorId: indicator.id,
             priority: aiStrategy.indicators.indexOf(indicatorRef) + 1,
             parameters: indicatorRef.parameters.map(param => {
-              // 根据参数名称在已创建的指标参数中找到对应的参数ID
               const indicator = createdIndicators[indicatorIndex];
               const parameter = indicator.parameters.find(
                 p => p.name === param.name
@@ -216,7 +451,6 @@ export class AiStrategyGeneratorService {
         }
       }
 
-      // 4. 构建策略条件
       for (const condition of aiStrategy.conditions) {
         createStrategyDto.conditions.push({
           indicatorIndex: condition.indicatorIndex,
@@ -234,7 +468,6 @@ export class AiStrategyGeneratorService {
         });
       }
 
-      // 5. 创建策略
       const createdStrategy = await this.strategiesService.create(createStrategyDto);
 
       return {
@@ -244,6 +477,9 @@ export class AiStrategyGeneratorService {
         createdIndicators: createdIndicators,
       };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         `AI策略创建失败: ${error.message}`,
         error.getStatus ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR,

@@ -1,0 +1,149 @@
+http://localhost:3099/ai-strategy-generator/generate
+{
+  "code": 200,
+  "message": "操作成功",
+  "data": {
+    "success": true,
+    "generatedStrategy": {
+      "name": "激进中部行情策略",
+      "description": "一个在右侧中部行情下运行的策略，使用三个指标，交易纪律偏激进，严格控制止损位",
+      "positionType": "both",
+      "buyFee": 0.001,
+      "sellFee": 0.001,
+      "liquidationThreshold": 90,
+      "takeProfitRatio": null,
+      "stopLossRatio": null,
+      "indicatorNews": [
+        {
+          "name": "AI_MA_10",
+          "description": "[AI生成] 10日移动平均线",
+          "code": "function calculate(priceData, parameters) { const period = parameters.period || 10; const result = []; for (let i = 0; i < priceData.length; i++) { if (i < period - 1) { result.push(null); } else { let sum = new BigNumber(0); for (let j = 0; j < period; j++) { sum = sum.plus(new BigNumber(priceData[i - j].closePrice)); } result.push(sum.dividedBy(period).toNumber()); } } return result; }",
+          "parameters": [
+            {
+              "name": "period",
+              "description": "计算周期",
+              "paramType": "number",
+              "defaultValue": "10"
+            }
+          ]
+        },
+        {
+          "name": "AI_RSI_14",
+          "description": "[AI生成] 14周期相对强弱指标",
+          "code": "function calculate(priceData, parameters) { const period = parameters.period || 14; const result = []; let gains = new BigNumber(0); let losses = new BigNumber(0); for (let i = 0; i < priceData.length; i++) { if (i === 0) { result.push(null); continue; } const currentPrice = new BigNumber(priceData[i].closePrice); const prevPrice = new BigNumber(priceData[i - 1].closePrice); const change = currentPrice.minus(prevPrice); if (i < period) { if (change.isGreaterThanOrEqualTo(0)) { gains = gains.plus(change); } else { losses = losses.plus(change.abs()); } if (i === period - 1) { const avgGain = gains.dividedBy(period); const avgLoss = losses.dividedBy(period); let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } else { result.push(null); } } else { const periodBN = new BigNumber(period); const periodMinus1 = new BigNumber(period - 1); const newGain = change.isGreaterThanOrEqualTo(0) ? change : new BigNumber(0); const newLoss = change.isLessThan(0) ? change.abs() : new BigNumber(0); const avgGain = gains.multipliedBy(periodMinus1).plus(newGain).dividedBy(periodBN); const avgLoss = losses.multipliedBy(periodMinus1).plus(newLoss).dividedBy(periodBN); gains = avgGain; losses = avgLoss; let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } } return result; }",
+          "parameters": [
+            {
+              "name": "period",
+              "description": "计算周期",
+              "paramType": "number",
+              "defaultValue": "14"
+            }
+          ]
+        },
+        {
+          "name": "AI_MACD_12_26_9",
+          "description": "[AI生成] 12, 26, 9周期MACD指标",
+          "code": "function calculate(priceData, parameters) { const shortPeriod = parameters.shortPeriod || 12; const longPeriod = parameters.longPeriod || 26; const signalPeriod = parameters.signalPeriod || 9; const result = []; const macd = []; const signal = []; const hist = []; for (let i = 0; i < priceData.length; i++) { if (i < shortPeriod) { macd.push(null); signal.push(null); hist.push(null); } else { const emaShort = calculateEMA(priceData, shortPeriod)[i]; const emaLong = calculateEMA(priceData, longPeriod)[i]; macd.push(emaShort - emaLong); } if (i < signalPeriod) { signal.push(null); } else { const emaSignal = calculateEMA(macd, signalPeriod)[i]; signal.push(emaSignal); } if (i > signalPeriod) { hist.push(macd[i] - signal[i]); } else { hist.push(null); } result.push({ macd: macd[i], signal: signal[i], hist: hist[i] }); } return result; function calculateEMA(data, period) { const result = []; let sum = new BigNumber(0); for (let i = 0; i < data.length; i++) { sum = sum.plus(new BigNumber(data[i].closePrice)); if (i === period - 1) { result.push(sum.dividedBy(period).toNumber()); sum = new BigNumber(0); } else if (i >= period) { const multiplier = new BigNumber(2).minus(new BigNumber(period).dividedBy(new BigNumber(i + 1))); sum = sum.plus(new BigNumber(data[i].closePrice).multipliedBy(multiplier)); result.push(sum.dividedBy(new BigNumber(period).toNumber())); sum = sum.minus(new BigNumber(result[i - 1]).multipliedBy(new BigNumber(period - 1).dividedBy(new BigNumber(i + 1)))); } } return result; }",
+          "parameters": [
+            {
+              "name": "shortPeriod",
+              "description": "短期EMA周期",
+              "paramType": "number",
+              "defaultValue": "12"
+            },
+            {
+              "name": "longPeriod",
+              "description": "长期EMA周期",
+              "paramType": "number",
+              "defaultValue": "26"
+            },
+            {
+              "name": "signalPeriod",
+              "description": "信号EMA周期",
+              "paramType": "number",
+              "defaultValue": "9"
+            }
+          ]
+        }
+      ],
+      "indicators": [
+        {
+          "indicatorNewsIndex": 0,
+          "parameters": [
+            {
+              "name": "period",
+              "value": "10"
+            }
+          ]
+        },
+        {
+          "indicatorNewsIndex": 1,
+          "parameters": [
+            {
+              "name": "period",
+              "value": "14"
+            }
+          ]
+        },
+        {
+          "indicatorNewsIndex": 2,
+          "parameters": [
+            {
+              "name": "shortPeriod",
+              "value": "12"
+            },
+            {
+              "name": "longPeriod",
+              "value": "26"
+            },
+            {
+              "name": "signalPeriod",
+              "value": "9"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "indicatorIndex": 2,
+          "comparisonType": "value",
+          "currentValuePath": "hist",
+          "operator": ">",
+          "conditionType": "value",
+          "action": "buy",
+          "group": 1,
+          "priority": 1,
+          "customCode": ""
+        },
+        {
+          "indicatorIndex": 2,
+          "comparisonType": "value",
+          "currentValuePath": "hist",
+          "operator": "<",
+          "conditionType": "value",
+          "action": "sell",
+          "group": 1,
+          "priority": 1,
+          "customCode": ""
+        },
+        {
+          "indicatorIndex": 1,
+          "comparisonType": "constant",
+          "constantValue": "70",
+          "operator": ">",
+          "conditionType": "value",
+          "action": "sell",
+          "group": 2,
+          "priority": 2,
+          "customCode": ""
+        }
+      ]
+    }
+  },
+  "timestamp": 1771770744787
+}
+
+这个请求的返回，没有符合描述种的严格控制止损位，和没有止盈位。
+添加逻辑ai策略的generate，其中生成的indicatorNews直接写入数据库。
+然后返回的格式需要适配正常的策略格式，包含指标、条件、操作等。
+如果缺少其他的数据请和我说明

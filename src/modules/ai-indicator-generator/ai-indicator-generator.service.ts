@@ -3,13 +3,98 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { IndicatorsService } from '../indicators/indicators.service';
 import { CreateIndicatorDto } from '../indicators/dto/create-indicator.dto';
+import { VM } from 'vm2';
 
 @Injectable()
 export class AiIndicatorGeneratorService {
+  private readonly DANGEROUS_PATTERNS = [
+    /eval\s*\(/,
+    /Function\s*\(/,
+    /require\s*\(/,
+    /import\s+/,
+    /process\./,
+    /fs\./,
+    /child_process/,
+    /exec\s*\(/,
+    /spawn\s*\(/,
+  ];
+
   constructor(
     private readonly httpService: HttpService,
     private readonly indicatorsService: IndicatorsService,
   ) { }
+
+  /**
+   * 验证生成的代码安全性
+   */
+  private validateGeneratedCode(code: string): { valid: boolean; reason?: string } {
+    for (const pattern of this.DANGEROUS_PATTERNS) {
+      if (pattern.test(code)) {
+        return { valid: false, reason: `代码包含不安全的操作: ${pattern.source}` };
+      }
+    }
+
+    if (!code.includes('function calculate')) {
+      return { valid: false, reason: '代码必须包含 calculate 函数' };
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * 验证代码能否正常执行
+   */
+  private validateCodeExecution(code: string, parameters: Record<string, any> = {}): { valid: boolean; reason?: string } {
+    try {
+      const testPriceData = [
+        { timestamp: 1000, openPrice: 100, highPrice: 105, lowPrice: 95, closePrice: 102, volume: 1000 },
+        { timestamp: 2000, openPrice: 102, highPrice: 108, lowPrice: 100, closePrice: 106, volume: 1200 },
+        { timestamp: 3000, openPrice: 106, highPrice: 110, lowPrice: 104, closePrice: 108, volume: 1100 },
+        { timestamp: 4000, openPrice: 108, highPrice: 112, lowPrice: 106, closePrice: 110, volume: 1300 },
+        { timestamp: 5000, openPrice: 110, highPrice: 115, lowPrice: 108, closePrice: 112, volume: 1400 },
+      ];
+
+      const BigNumber = require('bignumber.js');
+      const sandbox = {
+        BigNumber: BigNumber,
+        console: { log: () => {} },
+      };
+
+      const vm = new VM({
+        timeout: 5000,
+        sandbox,
+      });
+
+      vm.run(`
+        ${code}
+        
+        const result = calculate(${JSON.stringify(testPriceData)}, ${JSON.stringify(parameters)});
+      `);
+
+      return { valid: true };
+    } catch (error) {
+      return { valid: false, reason: `代码执行错误: ${error.message}` };
+    }
+  }
+
+  /**
+   * 验证指标名称格式
+   */
+  private validateIndicatorName(name: string): boolean {
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+  }
+
+  /**
+   * 转换参数格式，兼容AI返回的 type 字段和系统需要的 paramType 字段
+   */
+  private transformParameters(parameters: any[]): CreateIndicatorDto['parameters'] {
+    return parameters.map(param => ({
+      name: param.name,
+      paramType: param.paramType || param.type || 'number',
+      defaultValue: String(param.defaultValue ?? ''),
+      description: param.description || `参数: ${param.name}`,
+    }));
+  }
 
   /**
    * 读取提示词文件
@@ -114,27 +199,71 @@ export class AiIndicatorGeneratorService {
    */
   async createAiIndicator(userInput: string, indicatorName?: string, description?: string) {
     try {
-      // 生成指标函数代码和参数信息
+      const finalName = indicatorName || `AI_${Date.now()}`;
+
+      if (indicatorName && !this.validateIndicatorName(indicatorName)) {
+        throw new HttpException(
+          '指标名称格式不正确，只能包含字母、数字和下划线，且不能以数字开头',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const existingIndicator = await this.indicatorsService.findByName(finalName);
+      if (existingIndicator) {
+        throw new HttpException(
+          `指标名称 '${finalName}' 已存在，请使用其他名称`,
+          HttpStatus.CONFLICT,
+        );
+      }
+
       const { code, parameters } = await this.generateIndicatorFunction(userInput);
 
-      // 创建指标DTO
+      const codeValidation = this.validateGeneratedCode(code);
+      if (!codeValidation.valid) {
+        throw new HttpException(
+          `生成的代码安全验证失败: ${codeValidation.reason}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const transformedParams = this.transformParameters(parameters);
+      const paramsForTest = {};
+      transformedParams.forEach(param => {
+        if (param.paramType === 'number') {
+          paramsForTest[param.name] = Number(param.defaultValue) || 0;
+        } else if (param.paramType === 'boolean') {
+          paramsForTest[param.name] = param.defaultValue === 'true';
+        } else {
+          paramsForTest[param.name] = param.defaultValue;
+        }
+      });
+
+      const executionValidation = this.validateCodeExecution(code, paramsForTest);
+      if (!executionValidation.valid) {
+        throw new HttpException(
+          `生成的代码执行验证失败: ${executionValidation.reason}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const createIndicatorDto: CreateIndicatorDto = {
-        name: indicatorName || `AI_${Date.now()}`,
+        name: finalName,
         description: description || `AI生成的指标: ${userInput}`,
         calculationCode: code,
-        parameters: parameters,
+        parameters: transformedParams,
       };
 
-      // 调用指标服务创建指标
       const createdIndicator = await this.indicatorsService.create(createIndicatorDto);
 
       return {
         success: true,
         indicator: createdIndicator,
         generatedCode: code,
-        parameters: parameters,
       };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         `AI指标创建失败: ${error.message}`,
         error.getStatus ? error.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR,
@@ -149,7 +278,6 @@ export class AiIndicatorGeneratorService {
     const parameters: any[] = [];
 
     try {
-      // 提取参数解构语句
       const paramMatch = code.match(/const\s*{([^}]+)}\s*=\s*parameters/);
       if (paramMatch) {
         const paramString = paramMatch[1];
@@ -161,21 +289,19 @@ export class AiIndicatorGeneratorService {
 
           if (paramName) {
             let paramType = 'number';
-            let paramDefaultValue = null;
+            let paramDefaultValue = '';
 
             if (defaultValue) {
-              // 安全地解析默认值
               if (defaultValue.includes('"') || defaultValue.includes("'")) {
                 paramType = 'string';
                 paramDefaultValue = defaultValue.replace(/['"]/g, '');
               } else if (defaultValue === 'true' || defaultValue === 'false') {
                 paramType = 'boolean';
-                paramDefaultValue = defaultValue === 'true';
+                paramDefaultValue = defaultValue;
               } else if (!isNaN(Number(defaultValue))) {
                 paramType = 'number';
-                paramDefaultValue = Number(defaultValue);
+                paramDefaultValue = defaultValue;
               } else {
-                // 对于其他情况，保持字符串类型
                 paramType = 'string';
                 paramDefaultValue = defaultValue;
               }
@@ -183,7 +309,7 @@ export class AiIndicatorGeneratorService {
 
             parameters.push({
               name: paramName,
-              type: paramType,
+              paramType: paramType,
               defaultValue: paramDefaultValue,
               description: `参数: ${paramName}`,
             });
@@ -192,7 +318,6 @@ export class AiIndicatorGeneratorService {
       }
     } catch (error) {
       console.error('提取参数时出错:', error);
-      // 返回空参数数组而不是抛出错误
     }
 
     return parameters;

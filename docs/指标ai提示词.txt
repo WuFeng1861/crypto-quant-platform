@@ -61,4 +61,12 @@ function calculate(priceData, parameters) { const period = parameters.period || 
     "parameters": [...]
   }
 
+【必填字段检查清单 - 返回前必须检查】
+1. code: 不能为空, 必须是有效的函数代码
+2. parameters: 必须是数组
+3. parameters[].name: 不能为空
+4. parameters[].paramType: 不能为空, 必须是 "number", "string" 或 "boolean"
+5. parameters[].defaultValue: 不能为空
+6. parameters[].description: 建议填写
+
 【用户输入区】

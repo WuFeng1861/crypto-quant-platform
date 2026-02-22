@@ -8,7 +8,6 @@ import { RedisService } from '../common/services/redis.service';
 import { ProcessExecutorService } from '../common/services/process-executor.service';
 import { PriceDataService } from '../price-data/price-data.service';
 
-// 扩展指标类型，包含参数信息
 export type IndicatorWithParameters = Indicator & {
   parameters?: IndicatorParameter[];
 };
@@ -25,8 +24,11 @@ export class IndicatorsService {
     private priceDataService: PriceDataService,
   ) {}
 
+  async findByName(name: string): Promise<Indicator | null> {
+    return this.indicatorRepository.findOne({ where: { name } });
+  }
+
   async create(createIndicatorDto: CreateIndicatorDto): Promise<IndicatorWithParameters> {
-    // 创建指标
     const indicator = this.indicatorRepository.create({
       name: createIndicatorDto.name,
       description: createIndicatorDto.description,
@@ -35,7 +37,6 @@ export class IndicatorsService {
 
     const savedIndicator = await this.indicatorRepository.save(indicator);
 
-    // 创建指标参数
     let savedParameters: IndicatorParameter[] = [];
     if (createIndicatorDto.parameters && createIndicatorDto.parameters.length > 0) {
       const parameters = createIndicatorDto.parameters.map(param => {
@@ -51,10 +52,8 @@ export class IndicatorsService {
       savedParameters = await this.parameterRepository.save(parameters);
     }
 
-    // 清除相关缓存
     await this.clearIndicatorCache(savedIndicator.id);
 
-    // 返回包含参数的完整指标信息
     return {
       ...savedIndicator,
       parameters: savedParameters,
