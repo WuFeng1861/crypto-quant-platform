@@ -1,4 +1,5 @@
 http://localhost:3099/ai-strategy-generator/generate
+{"userInput":"一个能够在右侧中部行情下面的策略，至少使用三个指标，交易纪律需要偏激进，严格控制止损位"}
 {
   "code": 200,
   "message": "操作成功",
@@ -6,97 +7,58 @@ http://localhost:3099/ai-strategy-generator/generate
     "success": true,
     "generatedStrategy": {
       "name": "激进中部行情策略",
-      "description": "一个在右侧中部行情下运行的策略，使用三个指标，交易纪律偏激进，严格控制止损位",
+      "description": "基于右侧中部行情的激进交易策略，使用至少三个指标，严格控制止损位",
       "positionType": "both",
       "buyFee": 0.001,
       "sellFee": 0.001,
       "liquidationThreshold": 90,
       "takeProfitRatio": null,
-      "stopLossRatio": null,
-      "indicatorNews": [
-        {
-          "name": "AI_MA_10",
-          "description": "[AI生成] 10日移动平均线",
-          "code": "function calculate(priceData, parameters) { const period = parameters.period || 10; const result = []; for (let i = 0; i < priceData.length; i++) { if (i < period - 1) { result.push(null); } else { let sum = new BigNumber(0); for (let j = 0; j < period; j++) { sum = sum.plus(new BigNumber(priceData[i - j].closePrice)); } result.push(sum.dividedBy(period).toNumber()); } } return result; }",
-          "parameters": [
-            {
-              "name": "period",
-              "description": "计算周期",
-              "paramType": "number",
-              "defaultValue": "10"
-            }
-          ]
-        },
-        {
-          "name": "AI_RSI_14",
-          "description": "[AI生成] 14周期相对强弱指标",
-          "code": "function calculate(priceData, parameters) { const period = parameters.period || 14; const result = []; let gains = new BigNumber(0); let losses = new BigNumber(0); for (let i = 0; i < priceData.length; i++) { if (i === 0) { result.push(null); continue; } const currentPrice = new BigNumber(priceData[i].closePrice); const prevPrice = new BigNumber(priceData[i - 1].closePrice); const change = currentPrice.minus(prevPrice); if (i < period) { if (change.isGreaterThanOrEqualTo(0)) { gains = gains.plus(change); } else { losses = losses.plus(change.abs()); } if (i === period - 1) { const avgGain = gains.dividedBy(period); const avgLoss = losses.dividedBy(period); let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } else { result.push(null); } } else { const periodBN = new BigNumber(period); const periodMinus1 = new BigNumber(period - 1); const newGain = change.isGreaterThanOrEqualTo(0) ? change : new BigNumber(0); const newLoss = change.isLessThan(0) ? change.abs() : new BigNumber(0); const avgGain = gains.multipliedBy(periodMinus1).plus(newGain).dividedBy(periodBN); const avgLoss = losses.multipliedBy(periodMinus1).plus(newLoss).dividedBy(periodBN); gains = avgGain; losses = avgLoss; let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } } return result; }",
-          "parameters": [
-            {
-              "name": "period",
-              "description": "计算周期",
-              "paramType": "number",
-              "defaultValue": "14"
-            }
-          ]
-        },
-        {
-          "name": "AI_MACD_12_26_9",
-          "description": "[AI生成] 12, 26, 9周期MACD指标",
-          "code": "function calculate(priceData, parameters) { const shortPeriod = parameters.shortPeriod || 12; const longPeriod = parameters.longPeriod || 26; const signalPeriod = parameters.signalPeriod || 9; const result = []; const macd = []; const signal = []; const hist = []; for (let i = 0; i < priceData.length; i++) { if (i < shortPeriod) { macd.push(null); signal.push(null); hist.push(null); } else { const emaShort = calculateEMA(priceData, shortPeriod)[i]; const emaLong = calculateEMA(priceData, longPeriod)[i]; macd.push(emaShort - emaLong); } if (i < signalPeriod) { signal.push(null); } else { const emaSignal = calculateEMA(macd, signalPeriod)[i]; signal.push(emaSignal); } if (i > signalPeriod) { hist.push(macd[i] - signal[i]); } else { hist.push(null); } result.push({ macd: macd[i], signal: signal[i], hist: hist[i] }); } return result; function calculateEMA(data, period) { const result = []; let sum = new BigNumber(0); for (let i = 0; i < data.length; i++) { sum = sum.plus(new BigNumber(data[i].closePrice)); if (i === period - 1) { result.push(sum.dividedBy(period).toNumber()); sum = new BigNumber(0); } else if (i >= period) { const multiplier = new BigNumber(2).minus(new BigNumber(period).dividedBy(new BigNumber(i + 1))); sum = sum.plus(new BigNumber(data[i].closePrice).multipliedBy(multiplier)); result.push(sum.dividedBy(new BigNumber(period).toNumber())); sum = sum.minus(new BigNumber(result[i - 1]).multipliedBy(new BigNumber(period - 1).dividedBy(new BigNumber(i + 1)))); } } return result; }",
-          "parameters": [
-            {
-              "name": "shortPeriod",
-              "description": "短期EMA周期",
-              "paramType": "number",
-              "defaultValue": "12"
-            },
-            {
-              "name": "longPeriod",
-              "description": "长期EMA周期",
-              "paramType": "number",
-              "defaultValue": "26"
-            },
-            {
-              "name": "signalPeriod",
-              "description": "信号EMA周期",
-              "paramType": "number",
-              "defaultValue": "9"
-            }
-          ]
-        }
-      ],
+      "stopLossRatio": 0.05,
       "indicators": [
         {
+          "id": 33,
+          "name": "AI_MA_10",
+          "description": "[AI生成] 10日移动平均线",
           "indicatorNewsIndex": 0,
           "parameters": [
             {
+              "id": 29,
               "name": "period",
               "value": "10"
             }
           ]
         },
         {
+          "id": 34,
+          "name": "AI_RSI_14",
+          "description": "[AI生成] 14周期相对强弱指标",
           "indicatorNewsIndex": 1,
           "parameters": [
             {
+              "id": 30,
               "name": "period",
               "value": "14"
             }
           ]
         },
         {
+          "id": 35,
+          "name": "AI_MACD",
+          "description": "[AI生成] 移动平均收敛发散指标",
           "indicatorNewsIndex": 2,
           "parameters": [
             {
+              "id": 31,
               "name": "shortPeriod",
               "value": "12"
             },
             {
+              "id": 32,
               "name": "longPeriod",
               "value": "26"
             },
             {
+              "id": 33,
               "name": "signalPeriod",
               "value": "9"
             }
@@ -105,24 +67,26 @@ http://localhost:3099/ai-strategy-generator/generate
       ],
       "conditions": [
         {
-          "indicatorIndex": 2,
-          "comparisonType": "value",
-          "currentValuePath": "hist",
+          "indicatorIndex": 0,
+          "comparisonType": "indicator",
+          "comparedIndicatorIndex": 2,
+          "currentValuePath": "macd",
+          "comparedValuePath": "signal",
           "operator": ">",
-          "conditionType": "value",
-          "action": "buy",
+          "conditionType": "crossover",
           "group": 1,
           "priority": 1,
           "customCode": ""
         },
         {
-          "indicatorIndex": 2,
-          "comparisonType": "value",
-          "currentValuePath": "hist",
+          "indicatorIndex": 0,
+          "comparisonType": "indicator",
+          "comparedIndicatorIndex": 2,
+          "currentValuePath": "macd",
+          "comparedValuePath": "signal",
           "operator": "<",
-          "conditionType": "value",
-          "action": "sell",
-          "group": 1,
+          "conditionType": "crossover",
+          "group": 2,
           "priority": 1,
           "customCode": ""
         },
@@ -132,18 +96,98 @@ http://localhost:3099/ai-strategy-generator/generate
           "constantValue": "70",
           "operator": ">",
           "conditionType": "value",
-          "action": "sell",
-          "group": 2,
-          "priority": 2,
+          "group": 3,
+          "priority": 1,
           "customCode": ""
         }
       ]
-    }
+    },
+    "createdIndicators": [
+      {
+        "name": "AI_MA_10",
+        "description": "[AI生成] 10日移动平均线",
+        "calculationCode": "function calculate(priceData, parameters) { const period = parameters.period || 10; const result = []; for (let i = 0; i < priceData.length; i++) { if (i < period - 1) { result.push(null); } else { let sum = new BigNumber(0); for (let j = 0; j < period; j++) { sum = sum.plus(new BigNumber(priceData[i - j].closePrice)); } result.push(sum.dividedBy(period).toNumber()); } } return result; }",
+        "id": 33,
+        "createdAt": "2026-02-22T16:29:15.495Z",
+        "updatedAt": "2026-02-22T16:29:15.495Z",
+        "parameters": [
+          {
+            "indicatorId": 33,
+            "name": "period",
+            "description": "计算周期",
+            "defaultValue": "10",
+            "paramType": "number",
+            "id": 29,
+            "createdAt": "2026-02-22T16:29:15.513Z",
+            "updatedAt": "2026-02-22T16:29:15.513Z"
+          }
+        ]
+      },
+      {
+        "name": "AI_RSI_14",
+        "description": "[AI生成] 14周期相对强弱指标",
+        "calculationCode": "function calculate(priceData, parameters) { const period = parameters.period || 14; const result = []; let gains = new BigNumber(0); let losses = new BigNumber(0); for (let i = 0; i < priceData.length; i++) { if (i === 0) { result.push(null); continue; } const currentPrice = new BigNumber(priceData[i].closePrice); const prevPrice = new BigNumber(priceData[i - 1].closePrice); const change = currentPrice.minus(prevPrice); if (i < period) { if (change.isGreaterThanOrEqualTo(0)) { gains = gains.plus(change); } else { losses = losses.plus(change.abs()); } if (i === period - 1) { const avgGain = gains.dividedBy(period); const avgLoss = losses.dividedBy(period); let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } else { result.push(null); } } else { const periodBN = new BigNumber(period); const periodMinus1 = new BigNumber(period - 1); const newGain = change.isGreaterThanOrEqualTo(0) ? change : new BigNumber(0); const newLoss = change.isLessThan(0) ? change.abs() : new BigNumber(0); const avgGain = gains.multipliedBy(periodMinus1).plus(newGain).dividedBy(periodBN); const avgLoss = losses.multipliedBy(periodMinus1).plus(newLoss).dividedBy(periodBN); gains = avgGain; losses = avgLoss; let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } } return result; }",
+        "id": 34,
+        "createdAt": "2026-02-22T16:29:15.524Z",
+        "updatedAt": "2026-02-22T16:29:15.524Z",
+        "parameters": [
+          {
+            "indicatorId": 34,
+            "name": "period",
+            "description": "计算周期",
+            "defaultValue": "14",
+            "paramType": "number",
+            "id": 30,
+            "createdAt": "2026-02-22T16:29:15.532Z",
+            "updatedAt": "2026-02-22T16:29:15.532Z"
+          }
+        ]
+      },
+      {
+        "name": "AI_MACD",
+        "description": "[AI生成] 移动平均收敛发散指标",
+        "calculationCode": "function calculate(priceData, parameters) { const shortPeriod = parameters.shortPeriod || 12; const longPeriod = parameters.longPeriod || 26; const signalPeriod = parameters.signalPeriod || 9; const result = []; let emaShort, emaLong, macd, signal; for (let i = 0; i < priceData.length; i++) { if (i < shortPeriod - 1 || i < longPeriod - 1) { result.push({macd: null, signal: null}); continue; } emaShort = i < shortPeriod ? new BigNumber(priceData[i].closePrice) : emaShort ? emaShort.multipliedBy((shortPeriod - 1) / shortPeriod).plus(new BigNumber(priceData[i].closePrice).multipliedBy(1 / shortPeriod)) : new BigNumber(priceData[i].closePrice); emaLong = i < longPeriod ? new BigNumber(priceData[i].closePrice) : emaLong ? emaLong.multipliedBy((longPeriod - 1) / longPeriod).plus(new BigNumber(priceData[i].closePrice).multipliedBy(1 / longPeriod)) : new BigNumber(priceData[i].closePrice); macd = new BigNumber(emaShort.minus(emaLong)); signal = i < signalPeriod ? macd : signal ? signal.multipliedBy((signalPeriod - 1) / signalPeriod).plus(macd.multipliedBy(1 / signalPeriod)) : macd; result.push({macd: macd.toNumber(), signal: signal.toNumber()}); } return result; }",
+        "id": 35,
+        "createdAt": "2026-02-22T16:29:15.545Z",
+        "updatedAt": "2026-02-22T16:29:15.545Z",
+        "parameters": [
+          {
+            "indicatorId": 35,
+            "name": "shortPeriod",
+            "description": "短期EMA周期",
+            "defaultValue": "12",
+            "paramType": "number",
+            "id": 31,
+            "createdAt": "2026-02-22T16:29:15.555Z",
+            "updatedAt": "2026-02-22T16:29:15.555Z"
+          },
+          {
+            "indicatorId": 35,
+            "name": "longPeriod",
+            "description": "长期EMA周期",
+            "defaultValue": "26",
+            "paramType": "number",
+            "id": 32,
+            "createdAt": "2026-02-22T16:29:15.562Z",
+            "updatedAt": "2026-02-22T16:29:15.562Z"
+          },
+          {
+            "indicatorId": 35,
+            "name": "signalPeriod",
+            "description": "信号线EMA周期",
+            "defaultValue": "9",
+            "paramType": "number",
+            "id": 33,
+            "createdAt": "2026-02-22T16:29:15.567Z",
+            "updatedAt": "2026-02-22T16:29:15.567Z"
+          }
+        ]
+      }
+    ]
   },
-  "timestamp": 1771770744787
+  "timestamp": 1771777755578
 }
 
-这个请求的返回，没有符合描述种的严格控制止损位，和没有止盈位。
-添加逻辑ai策略的generate，其中生成的indicatorNews直接写入数据库。
-然后返回的格式需要适配正常的策略格式，包含指标、条件、操作等。
-如果缺少其他的数据请和我说明
+保存的时候有问题
+conditions.0.action must be one of the following values: , conditions.1.action must be one of the following values: , conditions.2.action must be one of the following values: "
+请解决这个问题

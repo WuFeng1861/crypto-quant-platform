@@ -9,6 +9,7 @@ import { PriceDataModule } from './modules/price-data/price-data.module';
 import { SystemModule } from './modules/system/system.module';
 import { AiIndicatorGeneratorModule } from './modules/ai-indicator-generator/ai-indicator-generator.module';
 import { AiStrategyGeneratorModule } from './modules/ai-strategy-generator/ai-strategy-generator.module';
+import { ProjectReportingModule } from './modules/project-reporting/project-reporting.module';
 
 @Module({
   imports: [
@@ -35,6 +36,8 @@ import { AiStrategyGeneratorModule } from './modules/ai-strategy-generator/ai-st
     SystemModule,
     AiIndicatorGeneratorModule,
     AiStrategyGeneratorModule,
+    ProjectReportingModule,
+    SystemModule,
   ],
 })
 export class AppModule {}
