@@ -132,6 +132,13 @@ function validateStrategyData(data) {
   // 条件配置验证
   if (data.conditions) {
     data.conditions.forEach((condition, index) => {
+      if (condition.conditionType === 'custom') {
+        if (!condition.customCode || condition.customCode.trim() === '') {
+          errors.push(`条件${index + 1}: 自定义代码不能为空`);
+        }
+        return;
+      }
+
       if (condition.indicatorIndex === undefined || condition.indicatorIndex === null) {
         errors.push(`条件${index + 1}: indicatorIndex不能为空`);
       }

@@ -8,11 +8,11 @@ export class StrategyCondition {
   @Column({ name: 'strategy_id' })
   strategyId: number;
 
-  @Column({ name: 'indicator_index' })
+  @Column({ name: 'indicator_index', nullable: true })
   indicatorIndex: number;
 
   // 比较类型：'indicator'（与另一个指标比较）或 'constant'（与常量比较）
-  @Column({ name: 'comparison_type', type: 'enum', enum: ['indicator', 'constant'] })
+  @Column({ name: 'comparison_type', type: 'enum', enum: ['indicator', 'constant'], nullable: true })
   comparisonType: string;
 
   // 当比较类型为'indicator'时，指定要比较的指标ID
@@ -32,7 +32,7 @@ export class StrategyCondition {
   comparedValuePath: string;
 
   // 比较运算符：'>', '<', '>=', '<=', '==', '!='
-  @Column({ name: 'operator' })
+  @Column({ name: 'operator', nullable: true })
   operator: string;
 
   // 条件类型：'crossover'（交叉）, 'value'（值比较）等

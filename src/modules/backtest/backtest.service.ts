@@ -379,7 +379,10 @@ export class BacktestService {
               condition,
               indicatorValues,
               i,
-              priceData
+              priceData,
+              position,
+              balance,
+              entryPrice
             );
 
             if (!conditionSatisfied) {
@@ -403,282 +406,284 @@ export class BacktestService {
       }
 
       // 检查卖出条件组
-      if (strategy.positionType !== 'long') {
-        for (const [groupId, conditions] of sellConditionGroups.entries()) {
-          let groupSatisfied = true;
-          let groupConditionId = null;
+      for (const [groupId, conditions] of sellConditionGroups.entries()) {
+        let groupSatisfied = true;
+        let groupConditionId = null;
 
-          // 检查组内所有条件是否满足（AND逻辑）
-          for (const condition of conditions) {
-            const conditionSatisfied = this.checkCondition(
-              condition,
-              indicatorValues,
-              i,
-              priceData
-            );
+        // 检查组内所有条件是否满足（AND逻辑）
+        for (const condition of conditions) {
+          const conditionSatisfied = this.checkCondition(
+            condition,
+            indicatorValues,
+            i,
+            priceData,
+            position,
+            balance,
+            entryPrice
+          );
 
-            if (!conditionSatisfied) {
-              groupSatisfied = false;
-              break;
-            }
-
-            // 记录第一个满足的条件ID
-            if (!groupConditionId) {
-              groupConditionId = condition.id;
-            }
+          if (!conditionSatisfied) {
+            groupSatisfied = false;
+            break;
           }
 
-          // 如果组内所有条件都满足，生成卖出信号
-          if (groupSatisfied && conditions.length > 0) {
-            sellSignal = true;
-            sellSignalConditionId = groupConditionId;
-            break; // 一个组满足即可（OR逻辑）
+          // 记录第一个满足的条件ID
+          if (!groupConditionId) {
+            groupConditionId = condition.id;
           }
+        }
+
+        // 如果组内所有条件都满足，生成卖出信号
+        if (groupSatisfied && conditions.length > 0) {
+          sellSignal = true;
+          sellSignalConditionId = groupConditionId;
+          break; // 一个组满足即可（OR逻辑）
         }
       }
 
       // 执行交易
-      if (buySignal && (position.isLessThanOrEqualTo(0) || strategy.positionType === 'both')) {
-        // 买入逻辑：只有在没有多头仓位或策略允许双向交易时才买入
-        const price = new BigNumber(candle.closePrice);
+      if (buySignal) {
+        // 买入逻辑：
+        // 1. 如果策略允许做多（'long' 或 'both'），或者当前持有空仓需要平仓（'short' 也可以平仓）
+        if (strategy.positionType !== 'short' || position.isLessThan(0)) {
+          const price = new BigNumber(candle.closePrice);
 
-        // 获取仓位分配参数（默认为1，表示全仓交易）
-        const positionDivision = createBacktestDto.positionDivision || 1;
+          // 获取仓位分配参数（默认为1，表示全仓交易）
+          const positionDivision = createBacktestDto.positionDivision || 1;
 
-        // 计算交易数量，考虑仓位分配
-        let amount;
-        // 用于计算买入数量的价格
-        const tempPrice = price.multipliedBy(strategy.buyFee).plus(price);
-        // 用于计算买入手续费的价格
-        const buyFeePrice = price.multipliedBy(strategy.buyFee);
+          // 计算交易数量，考虑仓位分配
+          let amount;
+          // 用于计算买入数量的价格
+          const tempPrice = price.multipliedBy(strategy.buyFee).plus(price);
+          // 用于计算买入手续费的价格
+          const buyFeePrice = price.multipliedBy(strategy.buyFee);
 
-        if (position.isZero()) {
-          // 开仓时按仓位分配
-          amount = balance.dividedBy(tempPrice).dividedBy(positionDivision);
-        } else if (position.isLessThan(0)) {
-          // 平空仓时使用全部持仓
-          amount = position.abs();
-        } else {
-          // 加仓逻辑：已有多头仓位且还有余额
-          // 计算当前仓位价值
-          const positionValue = position.multipliedBy(price);
-          // 计算总价值 = 仓位价值 + 余额
-          const totalValue = positionValue.plus(balance);
-          // 计算理想加仓金额
-          const idealAddAmount = totalValue.dividedBy(positionDivision);
+          if (position.isZero()) {
+            // 开仓时按仓位分配
+            amount = balance.dividedBy(tempPrice).dividedBy(positionDivision);
+          } else if (position.isLessThan(0)) {
+            // 平空仓时使用全部持仓
+            amount = position.abs();
+          } else if (strategy.positionType !== 'short') {
+            // 加仓逻辑：已有多头仓位且策略允许做多，还有余额
+            // 计算当前仓位价值
+            const positionValue = position.multipliedBy(price);
+            // 计算总价值 = 仓位价值 + 余额
+            const totalValue = positionValue.plus(balance);
+            // 计算理想加仓金额
+            const idealAddAmount = totalValue.dividedBy(positionDivision);
 
-          // 如果余额大于理想加仓金额，则使用理想加仓金额
-          // 否则全部投入
-          const addAmount = balance.isGreaterThan(idealAddAmount) ?
-            idealAddAmount :
-            balance;
+            // 如果余额大于理想加仓金额，则使用理想加仓金额
+            // 否则全部投入
+            const addAmount = balance.isGreaterThan(idealAddAmount) ?
+              idealAddAmount :
+              balance;
 
-          // 计算可以购买的数量
-          amount = addAmount.dividedBy(tempPrice);
-        }
-
-        // 如果amount < 0.000000001 则不交易
-        if (!amount.isLessThan(0.000000001)) {
-
-          const fee = amount.multipliedBy(buyFeePrice);
-
-          // 检查交易后余额是否会为负
-          balance = balance.minus(amount.multipliedBy(tempPrice));
-          // if (newBalance.isLessThan(0)) {
-          //   // 如果余额会为负，调整交易数量
-          //   const maxAmount = balance.dividedBy(tempPrice);
-          //   amount = BigNumber.max(0, maxAmount);
-          //   // 重新计算费用和余额
-          //   balance = balance.minus(amount.multipliedBy(tempPrice));
-          // } else {
-          //   // 更新余额和持仓
-          //   balance = newBalance;
-          // }
-
-          // 保存旧持仓数量，用于判断操作类型
-          const oldPosition = position.toNumber();
-          position = position.plus(amount);
-
-          if (oldPosition === 0) {
-            // 开仓
-            entryPrice = price;
-          } else if (oldPosition < 0 && position.isGreaterThanOrEqualTo(0)) {
-            // 平空仓 - 计算利润用于统计，同时更新余额
-            const grossProfit = entryPrice.minus(price).multipliedBy(amount.abs());
-            const entryFee = amount.abs().multipliedBy(entryPrice).multipliedBy(strategy.sellFee);
-            const exitFee = amount.abs().multipliedBy(buyFeePrice);
-            const netProfit = grossProfit.minus(entryFee).minus(exitFee);
-
-            if (netProfit.isGreaterThan(0)) winningTrades++;
-            else losingTrades++;
-
-            // 平空仓时：余额 = 余额 + 之前的卖出价的金额（卖出手续费已在开仓时处理）
-            // 注意：手续费在每次计算中已经处理，前面处理了平空仓买入的金额，现在要加上空仓卖出的金额
-            balance = balance.plus(entryPrice.multipliedBy(amount.abs()));
-          } else if (oldPosition > 0) {
-            // 加仓 - 计算新的平均持仓价格
-            // 计算旧仓位价值
-            const oldPositionValue = new BigNumber(oldPosition).multipliedBy(entryPrice);
-            // 计算新增仓位价值
-            const newPositionValue = amount.multipliedBy(price);
-            // 计算总仓位价值
-            const totalPositionValue = oldPositionValue.plus(newPositionValue);
-            // 计算新的平均持仓价格
-            entryPrice = totalPositionValue.dividedBy(position);
+            // 计算可以购买的数量
+            amount = addAmount.dividedBy(tempPrice);
+          } else {
+            // 其他情况（如 short 策略已有 position > 0，逻辑上不应发生）
+            amount = new BigNumber(0);
           }
 
-          // 记录交易
-          let tradeProfit = null;
-          let tradeProfitRate = null;
+          // 如果amount < 0.000000001 则不交易
+          if (amount && !amount.isLessThan(0.000000001)) {
+            // ... 后续逻辑保持不变
 
-          // 如果是平空仓，计算利润
-          if (oldPosition < 0 && position.isGreaterThanOrEqualTo(0)) {
-            tradeProfit = entryPrice.minus(price).multipliedBy(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())))
-              .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.sellFee))
-              .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(price).multipliedBy(strategy.buyFee))
-              .toNumber();
 
-            tradeProfitRate = entryPrice.minus(price).dividedBy(entryPrice).multipliedBy(100)
-              .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
-              .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
-              .toNumber();
+            const fee = amount.multipliedBy(buyFeePrice);
+
+            // 检查交易后余额是否会为负
+            balance = balance.minus(amount.multipliedBy(tempPrice));
+            // if (newBalance.isLessThan(0)) {
+            //   // 如果余额会为负，调整交易数量
+            //   const maxAmount = balance.dividedBy(tempPrice);
+            //   amount = BigNumber.max(0, maxAmount);
+            //   // 重新计算费用和余额
+            //   balance = balance.minus(amount.multipliedBy(tempPrice));
+            // } else {
+            //   // 更新余额和持仓
+            //   balance = newBalance;
+            // }
+
+            // 保存旧持仓数量，用于判断操作类型
+            const oldPosition = position.toNumber();
+            position = position.plus(amount);
+
+            if (oldPosition === 0) {
+              // 开仓
+              entryPrice = price;
+            } else if (oldPosition < 0 && position.isGreaterThanOrEqualTo(0)) {
+              // 平空仓 - 计算利润用于统计，同时更新余额
+              const grossProfit = entryPrice.minus(price).multipliedBy(amount.abs());
+              const entryFee = amount.abs().multipliedBy(entryPrice).multipliedBy(strategy.sellFee);
+              const exitFee = amount.abs().multipliedBy(buyFeePrice);
+              const netProfit = grossProfit.minus(entryFee).minus(exitFee);
+
+              if (netProfit.isGreaterThan(0)) winningTrades++;
+              else losingTrades++;
+
+              // 平空仓时：余额 = 余额 + 之前的卖出价的金额（卖出手续费已在开仓时处理）
+              // 注意：手续费在每次计算中已经处理，前面处理了平空仓买入的金额，现在要加上空仓卖出的金额
+              balance = balance.plus(entryPrice.multipliedBy(amount.abs()));
+            } else if (oldPosition > 0) {
+              // 加仓 - 计算新的平均持仓价格
+              // 计算旧仓位价值
+              const oldPositionValue = new BigNumber(oldPosition).multipliedBy(entryPrice);
+              // 计算新增仓位价值
+              const newPositionValue = amount.multipliedBy(price);
+              // 计算总仓位价值
+              const totalPositionValue = oldPositionValue.plus(newPositionValue);
+              // 计算新的平均持仓价格
+              entryPrice = totalPositionValue.dividedBy(position);
+            }
+
+            // 记录交易
+            let tradeProfit = null;
+            let tradeProfitRate = null;
+
+            // 如果是平空仓，计算利润
+            if (oldPosition < 0 && position.isGreaterThanOrEqualTo(0)) {
+              tradeProfit = entryPrice.minus(price).multipliedBy(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())))
+                .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.sellFee))
+                .minus(new BigNumber(Math.min(Math.abs(oldPosition), amount.toNumber())).multipliedBy(price).multipliedBy(strategy.buyFee))
+                .toNumber();
+
+              tradeProfitRate = entryPrice.minus(price).dividedBy(entryPrice).multipliedBy(100)
+                .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
+                .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
+                .toNumber();
+            }
+
+            trades.push({
+              backtestId: null, // 稍后填充
+              timestamp,
+              tradeType: 'buy',
+              price: price.toNumber(),
+              amount: amount.toNumber(),
+              fee: fee.toNumber(),
+              profit: tradeProfit,
+              profitRate: tradeProfitRate,
+              balance: balance.toNumber(), // 使用实际的现金余额，不包含仓位价值
+              signalIndicatorId: buySignalConditionId,
+            });
           }
-
-          trades.push({
-            backtestId: null, // 稍后填充
-            timestamp,
-            tradeType: 'buy',
-            price: price.toNumber(),
-            amount: amount.toNumber(),
-            fee: fee.toNumber(),
-            profit: tradeProfit,
-            profitRate: tradeProfitRate,
-            balance: balance.toNumber(), // 使用实际的现金余额，不包含仓位价值
-            signalIndicatorId: buySignalConditionId,
-          });
         }
       }
 
-      if (sellSignal && (position.isGreaterThan(0) || (strategy.positionType === 'both' && balance.isGreaterThan(0)))) {
-        // 卖出逻辑：只有在持有多头仓位或策略允许双向交易且有足够余额时才卖出
-        const price = new BigNumber(candle.closePrice);
+      if (sellSignal) {
+        // 卖出逻辑：
+        // 1. 如果策略允许做空（'short' 或 'both'），或者当前持有多仓需要平仓（'long' 也可以平仓）
+        if (strategy.positionType !== 'long' || position.isGreaterThan(0)) {
+          const price = new BigNumber(candle.closePrice);
 
-        // 获取仓位分配参数（默认为1，表示全仓交易）
-        const positionDivision = createBacktestDto.positionDivision || 1;
+          // 获取仓位分配参数（默认为1，表示全仓交易）
+          const positionDivision = createBacktestDto.positionDivision || 1;
 
-        // 计算交易数量，考虑仓位分配
-        let amount;
-        // 用于计算卖出数量的价格包含手续费和保证金
-        const tempPrice = price.multipliedBy(strategy.sellFee).plus(price);
-        // 用于计算卖出手续费的价格
-        const sellFeePrice = price.multipliedBy(strategy.sellFee);
+          // 计算交易数量，考虑仓位分配
+          let amount;
+          // 用于计算卖出数量的价格包含手续费和保证金
+          const tempPrice = price.multipliedBy(strategy.sellFee).plus(price);
+          // 用于计算卖出手续费的价格
+          const sellFeePrice = price.multipliedBy(strategy.sellFee);
 
-        if (position.isZero()) {
-          // 开空仓时按仓位分配，但需要有足够余额
-          const maxShortAmount = balance.dividedBy(tempPrice).dividedBy(positionDivision);
-          // 确保不会卖空超过可用余额
-          amount = BigNumber.min(maxShortAmount, balance.dividedBy(tempPrice).multipliedBy(0.95)); // 使用95%的可用余额，留一些缓冲
-        } else if (position.isGreaterThan(0)) {
-          // 平多仓时使用全部持仓
-          amount = position;
-        } else {
-          // 加仓逻辑：已有空头仓位且还有余额
-          // 计算空仓收益 = (开仓价格 - 当前价格) * 仓位数量
-          const shortProfit = entryPrice.minus(price).multipliedBy(position.abs());
-          // 总价值 = 余额 + 空仓收益
-          const totalValue = balance.plus(shortProfit);
-          // 计算理想加仓金额
-          const idealAddAmount = totalValue.dividedBy(positionDivision);
+          if (position.isZero()) {
+            // 开空仓时按仓位分配，但需要有足够余额
+            const maxShortAmount = balance.dividedBy(tempPrice).dividedBy(positionDivision);
+            // 确保不会卖空超过可用余额
+            amount = BigNumber.min(maxShortAmount, balance.dividedBy(tempPrice).multipliedBy(0.95)); // 使用95%的可用余额，留一些缓冲
+          } else if (position.isGreaterThan(0)) {
+            // 平多仓时使用全部持仓
+            amount = position;
+          } else if (strategy.positionType !== 'long') {
+            // 加仓逻辑：已有空头仓位且还有余额
+            // 计算空仓收益 = (开仓价格 - 当前价格) * 仓位数量
+            const shortProfit = entryPrice.minus(price).multipliedBy(position.abs());
+            // 总价值 = 余额 + 空仓收益
+            const totalValue = balance.plus(shortProfit);
+            // 计算理想加仓金额
+            const idealAddAmount = totalValue.dividedBy(positionDivision);
 
-          // 当前可用余额 = 余额 - 已经空仓的金额
-          const availableBalance = balance.minus(entryPrice.multipliedBy(position.abs()));
+            // 当前可用余额 = 余额 - 已经空仓的金额
+            const availableBalance = balance.minus(entryPrice.multipliedBy(position.abs()));
 
-          // 确保加仓金额不超过可用余额
-          const addAmount = totalValue.isGreaterThan(0) && availableBalance.isGreaterThan(idealAddAmount) ?
-            idealAddAmount :
-            BigNumber.max(0, availableBalance);
+            // 确保加仓金额不超过可用余额
+            const addAmount = totalValue.isGreaterThan(0) && availableBalance.isGreaterThan(idealAddAmount) ?
+              idealAddAmount :
+              BigNumber.max(0, availableBalance);
 
-          // 计算可以卖出的数量
-          amount = addAmount.dividedBy(tempPrice);
-        }
-
-        // 如果amount < 0.000000001 则不交易
-        if (!amount.isLessThan(0.000000001)) {
-          const fee = amount.multipliedBy(sellFeePrice);
-
-          // 做空时余额不会增加，只会减少手续费, 但是要考虑到做空需要支付的保证金
-          // 检查余额是否足够支付手续费
-          // if (balance.isLessThan(fee)) {
-          //   // 如果余额不足以支付手续费，调整交易数量
-          //   const maxAmount = balance.dividedBy(tempPrice);
-          //   amount = BigNumber.max(0, maxAmount);
-          // }
-
-          // 更新余额（空仓都减少手续费，平多的时候再去添加卖出金额），
-          const adjustedFee = amount.multipliedBy(sellFeePrice);
-          balance = balance.minus(adjustedFee);
-
-          // 保存旧持仓数量，用于判断操作类型
-          const oldPosition = position.toNumber();
-          position = position.minus(amount);
-
-          if (oldPosition === 0) {
-            // 开空仓
-            entryPrice = price;
-          } else if (oldPosition > 0 && position.isLessThanOrEqualTo(0)) {
-            // 平多仓 - 计算利润用于统计，同时更新余额
-            const grossProfit = price.minus(entryPrice).multipliedBy(amount);
-            const entryFee = amount.multipliedBy(entryPrice).multipliedBy(strategy.buyFee);
-            const exitFee = amount.multipliedBy(sellFeePrice);
-            const netProfit = grossProfit.minus(entryFee).minus(exitFee);
-
-            if (netProfit.isGreaterThan(0)) winningTrades++;
-            else losingTrades++;
-
-            // 平多仓时：余额 = 余额 + 平仓金额 - 平仓手续费（买入手续费已在开仓时处理）
-            // 注意：买入手续费在开多仓时已经处理，这里只处理卖出平仓的手续费, 平仓手续费在上面已处理
-            balance = balance.plus(price.multipliedBy(amount));
-          } else if (oldPosition < 0) {
-            // 加仓 - 计算新的平均持仓价格
-            // 计算旧仓位价值
-            const oldPositionValue = new BigNumber(Math.abs(oldPosition)).multipliedBy(entryPrice);
-            // 计算新增仓位价值
-            const newPositionValue = amount.multipliedBy(price);
-            // 计算总仓位价值
-            const totalPositionValue = oldPositionValue.plus(newPositionValue);
-            // 计算新的平均持仓价格
-            entryPrice = totalPositionValue.dividedBy(position.abs());
+            // 计算可以卖出的数量
+            amount = addAmount.dividedBy(tempPrice);
+          } else {
+            // 其他情况（如 long 策略已有 position < 0，逻辑上不应发生）
+            amount = new BigNumber(0);
           }
 
-          // 记录交易
-          let tradeProfit = null;
-          let tradeProfitRate = null;
+          // 如果amount < 0.000000001 则不交易
+          if (amount && !amount.isLessThan(0.000000001)) {
+            const fee = amount.multipliedBy(sellFeePrice);
 
-          // 如果是平多仓，计算利润
-          if (oldPosition > 0 && position.isLessThanOrEqualTo(0)) {
-            tradeProfit = price.minus(entryPrice).multipliedBy(new BigNumber(Math.min(oldPosition, amount.toNumber())))
-              .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.buyFee))
-              .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(price).multipliedBy(strategy.sellFee))
-              .toNumber();
+            // 更新余额（空仓都减少手续费，平多的时候再去添加卖出金额）
+            const adjustedFee = amount.multipliedBy(sellFeePrice);
+            balance = balance.minus(adjustedFee);
 
-            tradeProfitRate = price.minus(entryPrice).dividedBy(entryPrice).multipliedBy(100)
-              .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
-              .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
-              .toNumber();
+            // 保存旧持仓数量，用于判断操作类型
+            const oldPosition = position.toNumber();
+            position = position.minus(amount);
+
+            if (oldPosition === 0) {
+              // 开空仓
+              entryPrice = price;
+            } else if (oldPosition > 0 && position.isLessThanOrEqualTo(0)) {
+              // 平多仓 - 计算利润用于统计，同时更新余额
+              const grossProfit = price.minus(entryPrice).multipliedBy(amount);
+              const entryFee = amount.multipliedBy(entryPrice).multipliedBy(strategy.buyFee);
+              const exitFee = amount.multipliedBy(sellFeePrice);
+              const netProfit = grossProfit.minus(entryFee).minus(exitFee);
+
+              if (netProfit.isGreaterThan(0)) winningTrades++;
+              else losingTrades++;
+
+              // 平多仓时：余额 = 余额 + 平仓金额 - 平仓手续费
+              balance = balance.plus(price.multipliedBy(amount));
+            } else if (oldPosition < 0) {
+              // 加仓 - 计算新的平均持仓价格
+              const oldPositionValue = new BigNumber(Math.abs(oldPosition)).multipliedBy(entryPrice);
+              const newPositionValue = amount.multipliedBy(price);
+              const totalPositionValue = oldPositionValue.plus(newPositionValue);
+              entryPrice = totalPositionValue.dividedBy(position.abs());
+            }
+
+            // 记录交易
+            let tradeProfit = null;
+            let tradeProfitRate = null;
+
+            // 如果是平多仓，计算利润
+            if (oldPosition > 0 && position.isLessThanOrEqualTo(0)) {
+              tradeProfit = price.minus(entryPrice).multipliedBy(new BigNumber(Math.min(oldPosition, amount.toNumber())))
+                .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(entryPrice).multipliedBy(strategy.buyFee))
+                .minus(new BigNumber(Math.min(oldPosition, amount.toNumber())).multipliedBy(price).multipliedBy(strategy.sellFee))
+                .toNumber();
+
+              tradeProfitRate = price.minus(entryPrice).dividedBy(entryPrice).multipliedBy(100)
+                .minus(new BigNumber(strategy.buyFee).multipliedBy(100))
+                .minus(new BigNumber(strategy.sellFee).multipliedBy(100))
+                .toNumber();
+            }
+
+            trades.push({
+              backtestId: null, // 稍后填充
+              timestamp,
+              tradeType: 'sell',
+              price: price.toNumber(),
+              amount: amount.toNumber(),
+              fee: fee.toNumber(),
+              profit: tradeProfit,
+              profitRate: tradeProfitRate,
+              balance: balance.toNumber(), // 使用实际的现金余额，不包含仓位价值
+              signalIndicatorId: sellSignalConditionId,
+            });
           }
-
-          trades.push({
-            backtestId: null, // 稍后填充
-            timestamp,
-            tradeType: 'sell',
-            price: price.toNumber(),
-            amount: amount.toNumber(),
-            fee: fee.toNumber(),
-            profit: tradeProfit,
-            profitRate: tradeProfitRate,
-            balance: balance.toNumber(), // 使用实际的现金余额，不包含仓位价值
-            signalIndicatorId: sellSignalConditionId,
-          });
         }
       }
 
@@ -792,11 +797,22 @@ export class BacktestService {
     condition: any,
     indicatorValues: any[],
     index: number,
-    priceData: PriceData[]
+    priceData: PriceData[],
+    position: BigNumber,
+    balance: BigNumber,
+    entryPrice: BigNumber
   ): boolean {
     // 如果有自定义代码，优先使用代码逻辑
     if (condition.customCode && condition.customCode.trim()) {
-      return this.executeCustomCode(condition.customCode, indicatorValues, index, priceData);
+      return this.executeCustomCode(
+        condition.customCode,
+        indicatorValues,
+        index,
+        priceData,
+        position,
+        balance,
+        entryPrice
+      );
     }
 
     /* 使用指标下标获取指标值 */
@@ -870,9 +886,13 @@ export class BacktestService {
     code: string,
     indicatorValues: any[],
     index: number,
-    priceData: PriceData[]
+    priceData: PriceData[],
+    position: BigNumber,
+    balance: BigNumber,
+    entryPrice: BigNumber
   ): boolean {
     try {
+      // console.log(`[DEBUG] 执行代码 (index: ${index}):`, code.substring(0, 50) + '...');
       // 创建VM实例，设置超时时间为10分钟
       const vm = new VM({
         timeout: 10 * 60 * 1000, // 10分钟超时
@@ -882,8 +902,22 @@ export class BacktestService {
           index,
           priceData,
           BigNumber,
+          // 提供持仓信息
+          position: position.toNumber(),
+          balance: balance.toNumber(),
+          entryPrice: entryPrice.toNumber(),
+          // 提供持仓状态
+          hasPosition: !position.isZero(),
+          isLong: position.isGreaterThan(0),
+          isShort: position.isLessThan(0),
           // 提供一些常用的数学函数
           Math,
+          // 提供 console 以便调试
+          console: {
+            log: (...args: any[]) => console.log('[VM Log]', ...args),
+            error: (...args: any[]) => console.error('[VM Error]', ...args),
+            warn: (...args: any[]) => console.warn('[VM Warn]', ...args),
+          },
           // 提供当前和前一个价格数据的快捷访问
           current: priceData[index],
           previous: index > 0 ? priceData[index - 1] : null,
@@ -919,7 +953,6 @@ export class BacktestService {
 
       // 执行代码并获取结果
       const result = vm.run(`
-        // 用户代码在这里执行
         (function() {
           ${code}
         })()

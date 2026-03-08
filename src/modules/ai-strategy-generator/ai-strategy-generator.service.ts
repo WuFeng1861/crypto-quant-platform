@@ -261,15 +261,16 @@ export class AiStrategyGeneratorService {
   }
 
   /**
-   * 生成策略并将指标写入数据库
+   * 验证策略数据、保存指标并返回策略JSON
+   * 此方法可被外部调用，用于处理已生成的策略JSON
+   * @param aiStrategy AI生成的策略JSON
+   * @returns 验证和保存结果
    */
-  async generateStrategyWithIndicators(userInput: string) {
-    const aiStrategy = await this.generateStrategy(userInput);
-
+  async validateAndSaveStrategy(aiStrategy: AiStrategyResponse) {
     const dataValidation = StrategyDataValidator.validateStrategy(aiStrategy);
     if (!dataValidation.valid) {
       throw new HttpException(
-        `AI生成的策略数据不完整: ${dataValidation.errors.join('; ')}`,
+        `策略数据不完整: ${dataValidation.errors.join('; ')}`,
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -355,6 +356,14 @@ export class AiStrategyGeneratorService {
       },
       createdIndicators: createdIndicators,
     };
+  }
+
+  /**
+   * 生成策略并将指标写入数据库
+   */
+  async generateStrategyWithIndicators(userInput: string) {
+    const aiStrategy = await this.generateStrategy(userInput);
+    return this.validateAndSaveStrategy(aiStrategy);
   }
 
   /**

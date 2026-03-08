@@ -1,5 +1,5 @@
 import { Controller, Post, Body, HttpException, HttpStatus } from '@nestjs/common';
-import { AiStrategyGeneratorService } from './ai-strategy-generator.service';
+import { AiStrategyGeneratorService, AiStrategyResponse } from './ai-strategy-generator.service';
 
 const MAX_INPUT_LENGTH = 5000;
 
@@ -30,6 +30,27 @@ export class AiStrategyGeneratorController {
       }
       throw new HttpException(
         `生成策略失败: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Post('validate-and-save')
+  async validateAndSaveStrategy(@Body() body: { strategy: AiStrategyResponse }) {
+    try {
+      if (!body.strategy) {
+        throw new HttpException('策略数据不能为空', HttpStatus.BAD_REQUEST);
+      }
+
+      const result = await this.aiStrategyGeneratorService.validateAndSaveStrategy(body.strategy);
+
+      return result;
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        `验证保存策略失败: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

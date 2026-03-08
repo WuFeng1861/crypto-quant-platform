@@ -36,8 +36,8 @@ import { ProjectReportingModule } from './modules/project-reporting/project-repo
     SystemModule,
     AiIndicatorGeneratorModule,
     AiStrategyGeneratorModule,
-    ProjectReportingModule,
+    // ProjectReportingModule,
     SystemModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

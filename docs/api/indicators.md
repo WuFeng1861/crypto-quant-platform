@@ -189,7 +189,96 @@
 }
 ```
 
-### 5. 计算指标值
+### 5. 更新指标
+
+**PATCH** `/indicators/:id`
+
+更新已存在的指标信息及其参数。
+
+**路径参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | number | 是 | 指标ID |
+
+**请求体：**
+```json
+{
+  "name": "增强型下跌指标",
+  "description": "下跌指标的新描述",
+  "calculationCode": "function calculate(priceData, parameters) { /* 新代码逻辑 */ }",
+  "parameters": [
+    {
+      "name": "threshold",
+      "description": "下跌阈值",
+      "defaultValue": "0.01",
+      "paramType": "number"
+    }
+  ]
+}
+```
+
+**参数说明：**
+| 参数 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **name** | `string` | 否 | 指标名称 |
+| **description** | `string` | 否 | 指标描述 |
+| **calculationCode** | `string` | 否 | 指标计算逻辑（JavaScript 代码字符串） |
+| **parameters** | `Array<Object>` | 否 | 指标参数列表（若提供，将完全覆盖原参数） |
+
+**parameters 数组项结构：**
+| 参数名 | 类型 | 必填 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **name** | `string` | 是 | 参数变量名 |
+| **description** | `string` | 否 | 参数描述 |
+| **defaultValue** | `string` | 否 | 默认值（字符串格式） |
+| **paramType** | `string` | 是 | 参数类型（'number', 'string', 'boolean'） |
+
+**响应示例：**
+```json
+{
+  "id": 45,
+  "name": "增强型下跌指标",
+  "description": "下跌指标",
+  "calculationCode": "function calculate(priceData, parameters) { ... }",
+  "createdAt": "2026-03-08T14:47:40.280Z",
+  "updatedAt": "2026-03-09T08:30:00.000Z",
+  "parameters": [
+    {
+      "id": 10,
+      "indicatorId": 45,
+      "name": "threshold",
+      "description": "下跌阈值",
+      "defaultValue": "0.01",
+      "paramType": "number",
+      "createdAt": "2026-03-09T08:30:00.000Z",
+      "updatedAt": "2026-03-09T08:30:00.000Z"
+    }
+  ]
+}
+```
+
+### 6. 删除指标
+
+**DELETE** `/indicators/:id`
+
+删除指定的指标及其关联的参数。
+
+**注意**：如果该指标正在被某些策略使用，删除操作可能会因为数据库外键约束而失败。
+
+**路径参数：**
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| id | number | 是 | 指标ID |
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "message": "指标删除成功"
+}
+```
+
+### 7. 计算指标值
 
 **POST** `/indicators/:id/calculate`
 

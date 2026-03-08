@@ -1,0 +1,2572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量化策略开发指南 - 指标与策略编写手册</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1a2234;
+            --bg-card: #151d2e;
+            --text-primary: #f0f4f8;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #8b5cf6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --border-color: #1e293b;
+            --code-bg: #0d1117;
+            --gradient-1: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            --gradient-2: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+            --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        .bg-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        header.scrolled {
+            background: rgba(10, 14, 23, 0.95);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.25rem;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--gradient-1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            -webkit-text-fill-color: white;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .nav-links a.active {
+            color: var(--accent-primary);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        main {
+            padding-top: 80px;
+        }
+
+        .hero {
+            padding: 100px 0 80px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 100px;
+            font-size: 0.85rem;
+            color: var(--accent-primary);
+            margin-bottom: 24px;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 40px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--accent-primary);
+        }
+
+        .section {
+            padding: 80px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-tag {
+            display: inline-block;
+            padding: 6px 14px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: clamp(1.8rem, 3vw, 2.5rem);
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .section-desc {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            padding: 6px;
+            border-radius: 14px;
+            margin-bottom: 40px;
+            max-width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            font-size: 1rem;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--gradient-1);
+            color: white;
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: var(--shadow-glow);
+            transform: translateY(-4px);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .card-icon.blue { background: rgba(59, 130, 246, 0.15); }
+        .card-icon.purple { background: rgba(139, 92, 246, 0.15); }
+        .card-icon.green { background: rgba(16, 185, 129, 0.15); }
+        .card-icon.orange { background: rgba(245, 158, 11, 0.15); }
+
+        .card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 24px 0;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .code-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .code-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .code-btn {
+            padding: 6px 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .code-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .code-btn.copied {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-success);
+            border-color: var(--accent-success);
+        }
+
+        pre {
+            margin: 0;
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        pre code {
+            font-family: inherit;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 24px 0;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+        }
+
+        td {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: var(--bg-tertiary);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tag-required { background: rgba(239, 68, 68, 0.15); color: var(--accent-danger); }
+        .tag-optional { background: rgba(59, 130, 246, 0.15); color: var(--accent-primary); }
+        .tag-string { background: rgba(16, 185, 129, 0.15); color: var(--accent-success); }
+        .tag-number { background: rgba(245, 158, 11, 0.15); color: var(--accent-warning); }
+        .tag-enum { background: rgba(139, 92, 246, 0.15); color: var(--accent-secondary); }
+
+        .info-box {
+            padding: 20px 24px;
+            border-radius: 12px;
+            margin: 24px 0;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .info-box.tip {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .info-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .info-box.info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .info-box-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .info-box-content h4 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .info-box-content p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .accordion {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 24px 0;
+        }
+
+        .accordion-item {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .accordion-item:last-child {
+            border-bottom: none;
+        }
+
+        .accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 20px;
+            background: var(--bg-card);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .accordion-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .accordion-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .accordion-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .accordion-arrow {
+            transition: transform 0.3s ease;
+            color: var(--text-muted);
+        }
+
+        .accordion-item.open .accordion-arrow {
+            transform: rotate(180deg);
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: var(--bg-secondary);
+        }
+
+        .accordion-item.open .accordion-content {
+            max-height: 2000px;
+        }
+
+        .accordion-body {
+            padding: 20px;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 40px 20px;
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            margin: 40px 0;
+        }
+
+        .flow-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .flow-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+        }
+
+        .flow-step.active .flow-icon {
+            background: var(--gradient-1);
+            border-color: transparent;
+        }
+
+        .flow-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .flow-step.active .flow-label {
+            color: var(--text-primary);
+        }
+
+        .flow-arrow {
+            color: var(--text-muted);
+            font-size: 1.5rem;
+        }
+
+        .quick-nav {
+            position: fixed;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quick-nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-nav-dot:hover,
+        .quick-nav-dot.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            transform: scale(1.2);
+        }
+
+        footer {
+            padding: 60px 0;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        footer p {
+            font-size: 0.9rem;
+        }
+
+        .example-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .example-btn {
+            padding: 10px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .example-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .example-btn.active {
+            background: var(--gradient-1);
+            border-color: transparent;
+            color: white;
+        }
+
+        .property-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .property-item {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .property-item:last-child {
+            border-bottom: none;
+        }
+
+        .property-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--accent-primary);
+            min-width: 180px;
+            flex-shrink: 0;
+        }
+
+        .property-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .property-meta {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        @media (max-width: 1024px) {
+            .quick-nav {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 60px 0;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .tab {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+
+            .flow-diagram {
+                flex-direction: column;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+
+        .highlight-line {
+            display: block;
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid var(--accent-primary);
+            margin: 0 -20px;
+            padding: 0 20px;
+        }
+
+        .action-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .action-buy {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-success);
+        }
+
+        .action-sell {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--accent-danger);
+        }
+
+        .comparison-table {
+            width: 100%;
+            margin: 24px 0;
+        }
+
+        .comparison-table td {
+            vertical-align: top;
+        }
+
+        .json-tree {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+        }
+
+        .json-key {
+            color: #7dd3fc;
+        }
+
+        .json-string {
+            color: #a5d6a7;
+        }
+
+        .json-number {
+            color: #ffcc80;
+        }
+
+        .json-boolean {
+            color: #ce93d8;
+        }
+
+        .json-null {
+            color: #ef9a9a;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-pattern"></div>
+
+    <header id="header">
+        <nav class="container">
+            <div class="logo">
+                <div class="logo-icon">📊</div>
+                量化策略开发指南
+            </div>
+            <div class="nav-links">
+                <a href="#overview" class="active">概述</a>
+                <a href="#indicators">指标开发</a>
+                <a href="#strategies">策略开发</a>
+                <a href="#conditions">交易条件</a>
+                <a href="#examples">完整示例</a>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero" id="overview">
+            <div class="container">
+                <div class="hero-badge">
+                    <span>🚀</span>
+                    Crypto Quant Platform
+                </div>
+                <h1>量化策略开发指南</h1>
+                <p>深入了解如何编写自定义指标和交易策略，掌握JSON配置结构与条件逻辑，构建专业的量化交易系统</p>
+                <div class="hero-actions">
+                    <a href="#indicators" class="btn btn-primary">
+                        <span>📖</span>
+                        开始学习
+                    </a>
+                    <a href="#examples" class="btn btn-secondary">
+                        <span>💻</span>
+                        查看示例
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="architecture">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-tag">系统架构</span>
+                    <h2 class="section-title">核心概念关系</h2>
+                    <p class="section-desc">理解指标、策略、条件之间的关系是开发量化系统的基础</p>
+                </div>
+
+                <div class="flow-diagram">
+                    <div class="flow-step active">
+                        <div class="flow-icon">📈</div>
+                        <span class="flow-label">指标定义<br><small>计算逻辑</small></span>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step active">
+                        <div class="flow-icon">⚙️</div>
+                        <span class="flow-label">策略配置<br><small>参数设置</small></span>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step active">
+                        <div class="flow-icon">🎯</div>
+                        <span class="flow-label">交易条件<br><small>买卖信号</small></span>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step active">
+                        <div class="flow-icon">💰</div>
+                        <span class="flow-label">执行交易<br><small>自动下单</small></span>
+                    </div>
+                </div>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-icon blue">📈</div>
+                        <h3>指标 (Indicator)</h3>
+                        <p>定义价格数据的计算逻辑，如MA、RSI、MACD等。包含计算代码和参数定义，可被多个策略复用。</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon purple">⚙️</div>
+                        <h3>策略 (Strategy)</h3>
+                        <p>组合多个指标，配置交易参数如手续费、止盈止损等。是完整的交易规则集合。</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon green">🎯</div>
+                        <h3>条件 (Condition)</h3>
+                        <p>定义触发交易的逻辑规则，如指标交叉、阈值比较等。决定何时买入或卖出。</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon orange">📊</div>
+                        <h3>参数 (Parameter)</h3>
+                        <p>指标的可配置参数，如周期数、平滑系数等。使指标具有灵活性和可调优性。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="indicators">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-tag">Part 1</span>
+                    <h2 class="section-title">指标开发指南</h2>
+                    <p class="section-desc">学习如何创建自定义技术指标</p>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" data-tab="indicator-json">JSON结构</button>
+                    <button class="tab" data-tab="indicator-code">计算代码</button>
+                    <button class="tab" data-tab="indicator-params">参数定义</button>
+                </div>
+
+                <div class="tab-content active" id="indicator-json">
+                    <h3 style="margin-bottom: 20px;">指标JSON完整结构</h3>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">indicator.json</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "name": "MA",
+  "description": "简单移动平均线指标",
+  "calculationCode": "function calculate(priceData, parameters) { ... }",
+  "parameters": [
+    {
+      "name": "period",
+      "description": "计算周期",
+      "paramType": "number",
+      "defaultValue": "20"
+    }
+  ]
+}</code></pre>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">字段说明</h3>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>字段名</th>
+                                    <th>类型</th>
+                                    <th>必填</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>name</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td>指标名称，建议使用大写英文，如 MA、RSI、MACD</td>
+                                </tr>
+                                <tr>
+                                    <td><code>description</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>指标描述，说明指标的用途和计算方式</td>
+                                </tr>
+                                <tr>
+                                    <td><code>calculationCode</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td>计算函数代码，必须是有效的JavaScript函数</td>
+                                </tr>
+                                <tr>
+                                    <td><code>parameters</code></td>
+                                    <td><span class="tag tag-enum">array</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>参数定义数组，定义指标的可配置参数</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="info-box tip">
+                        <span class="info-box-icon">💡</span>
+                        <div class="info-box-content">
+                            <h4>命名规范</h4>
+                            <p>AI生成的指标名称必须以 "AI_" 开头，格式为 "AI_指标类型_参数"，例如：AI_MA_5、AI_RSI_14。描述必须包含 "[AI生成]" 前缀。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="indicator-code">
+                    <h3 style="margin-bottom: 20px;">计算函数编写规范</h3>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">函数签名（固定格式）</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-javascript">function calculate(priceData, parameters) {
+  // priceData: 价格数据数组
+  // parameters: 参数对象，如 { period: 20 }
+  
+  // 返回计算结果数组
+  return result;
+}</code></pre>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">priceData 数据结构</h3>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">价格数据格式</span>
+                        </div>
+                        <pre><code class="language-javascript">// priceData 是一个数组，每个元素包含：
+[
+  {
+    timestamp: 1640995200000,    // 时间戳（毫秒）
+    openPrice: 47000.50,         // 开盘价
+    highPrice: 47500.00,         // 最高价
+    lowPrice: 46800.00,          // 最低价
+    closePrice: 47200.25,        // 收盘价
+    volume: 1250.75              // 成交量
+  },
+  // ... 更多数据
+]</code></pre>
+                    </div>
+
+                    <div class="info-box warning">
+                        <span class="info-box-icon">⚠️</span>
+                        <div class="info-box-content">
+                            <h4>重要：使用 BigNumber 进行浮点运算</h4>
+                            <p>所有浮点运算必须使用 BigNumber 库，禁止直接使用 +、-、*、/ 运算符，以避免精度丢失问题。</p>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">完整示例：MA指标</h3>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">MA计算代码</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-javascript">function calculate(priceData, parameters) {
+  const period = parameters.period || 20;
+  const result = [];
+  
+  for (let i = 0; i < priceData.length; i++) {
+    if (i < period - 1) {
+      result.push(null);
+    } else {
+      let sum = new BigNumber(0);
+      for (let j = 0; j < period; j++) {
+        sum = sum.plus(new BigNumber(priceData[i - j].closePrice));
+      }
+      result.push(sum.dividedBy(period).toNumber());
+    }
+  }
+  
+  return result;
+}</code></pre>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">多轨指标示例：MACD</h3>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">MACD返回对象数组</span>
+                        </div>
+                        <pre><code class="language-javascript">// 多轨指标返回对象数组，每个对象包含多个值
+function calculate(priceData, parameters) {
+  // ... 计算逻辑
+  
+  // 返回格式：每个元素是包含多个属性的对象
+  return [
+    {
+      macd: 0.123,       // MACD线
+      signal: 0.098,     // 信号线
+      histogram: 0.025   // 柱状图
+    },
+    // ... 更多数据点
+  ];
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="indicator-params">
+                    <h3 style="margin-bottom: 20px;">参数定义结构</h3>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">参数定义格式</span>
+                        </div>
+                        <pre><code class="language-json">{
+  "name": "period",
+  "description": "计算周期",
+  "paramType": "number",
+  "defaultValue": "20"
+}</code></pre>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">参数字段说明</h3>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>字段名</th>
+                                    <th>类型</th>
+                                    <th>必填</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>name</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td>参数名称，在代码中通过 parameters.name 访问</td>
+                                </tr>
+                                <tr>
+                                    <td><code>description</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>参数描述，说明参数的作用</td>
+                                </tr>
+                                <tr>
+                                    <td><code>paramType</code></td>
+                                    <td><span class="tag tag-enum">enum</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td>参数类型：<code>number</code> | <code>string</code> | <code>boolean</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>defaultValue</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>默认值，字符串格式存储</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="info-box info">
+                        <span class="info-box-icon">ℹ️</span>
+                        <div class="info-box-content">
+                            <h4>参数类型说明</h4>
+                            <p><strong>number</strong>：数值类型，如周期数、系数等<br>
+                            <strong>string</strong>：字符串类型，如价格类型选择<br>
+                            <strong>boolean</strong>：布尔类型，如是否启用某功能</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="strategies">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-tag">Part 2</span>
+                    <h2 class="section-title">策略开发指南</h2>
+                    <p class="section-desc">学习如何配置完整的交易策略</p>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" data-tab="strategy-json">JSON结构</button>
+                    <button class="tab" data-tab="strategy-fields">字段详解</button>
+                    <button class="tab" data-tab="strategy-indicators">指标配置</button>
+                </div>
+
+                <div class="tab-content active" id="strategy-json">
+                    <h3 style="margin-bottom: 20px;">策略JSON完整结构</h3>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">strategy.json</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "name": "MA交叉策略",
+  "description": "基于MA5和MA20移动平均线交叉的交易策略",
+  "positionType": "both",
+  "buyFee": 0.001,
+  "sellFee": 0.001,
+  "liquidationThreshold": 90,
+  "takeProfitRatio": 0.15,
+  "stopLossRatio": 0.08,
+  "indicatorNews": [
+    {
+      "name": "AI_MA_5",
+      "description": "[AI生成] 5日移动平均线",
+      "code": "function calculate(priceData, parameters) { ... }",
+      "parameters": [
+        { "name": "period", "description": "计算周期", "paramType": "number", "defaultValue": "5" }
+      ]
+    }
+  ],
+  "indicators": [
+    { "indicatorNewsIndex": 0, "parameters": [{ "name": "period", "value": "5" }] }
+  ],
+  "conditions": [
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "indicator",
+      "comparedIndicatorIndex": 1,
+      "operator": ">",
+      "conditionType": "crossover",
+      "action": "buy",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="strategy-fields">
+                    <h3 style="margin-bottom: 20px;">策略基础字段</h3>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>字段名</th>
+                                    <th>类型</th>
+                                    <th>必填</th>
+                                    <th>默认值</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>name</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td>-</td>
+                                    <td>策略名称</td>
+                                </tr>
+                                <tr>
+                                    <td><code>description</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>-</td>
+                                    <td>策略描述</td>
+                                </tr>
+                                <tr>
+                                    <td><code>positionType</code></td>
+                                    <td><span class="tag tag-enum">enum</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>both</td>
+                                    <td>持仓类型：<code>long</code>(做多) | <code>short</code>(做空) | <code>both</code>(双向)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>buyFee</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>0.001</td>
+                                    <td>买入手续费率（0.001 = 0.1%）</td>
+                                </tr>
+                                <tr>
+                                    <td><code>sellFee</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>0.001</td>
+                                    <td>卖出手续费率（0.001 = 0.1%）</td>
+                                </tr>
+                                <tr>
+                                    <td><code>liquidationThreshold</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>90</td>
+                                    <td>强平阈值（百分比）</td>
+                                </tr>
+                                <tr>
+                                    <td><code>takeProfitRatio</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>null</td>
+                                    <td>止盈比例（0.15 = 15%）</td>
+                                </tr>
+                                <tr>
+                                    <td><code>stopLossRatio</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>null</td>
+                                    <td>止损比例（0.08 = 8%）</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="info-box tip">
+                        <span class="info-box-icon">💡</span>
+                        <div class="info-box-content">
+                            <h4>止盈止损设置规则</h4>
+                            <p>• 用户提到"止盈X%"，则 takeProfitRatio = X/100（如：止盈10% → 0.1）<br>
+                            • 用户提到"止损X%"，则 stopLossRatio = X/100（如：止损5% → 0.05）<br>
+                            • 如果用户完全没有提及止盈止损，则为 null</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="strategy-indicators">
+                    <h3 style="margin-bottom: 20px;">indicatorNews - 新建指标定义</h3>
+                    
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">用于在策略中直接定义新指标，无需预先创建指标记录。</p>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">indicatorNews 结构</span>
+                        </div>
+                        <pre><code class="language-json">"indicatorNews": [
+  {
+    "name": "AI_MA_5",
+    "description": "[AI生成] 5日移动平均线",
+    "code": "function calculate(priceData, parameters) { ... }",
+    "parameters": [
+      { "name": "period", "description": "计算周期", "paramType": "number", "defaultValue": "5" }
+    ]
+  }
+]</code></pre>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">indicators - 指标配置引用</h3>
+                    
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">通过索引引用 indicatorNews 中定义的指标，并设置具体参数值。</p>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">indicators 结构</span>
+                        </div>
+                        <pre><code class="language-json">"indicators": [
+  {
+    "indicatorNewsIndex": 0,
+    "parameters": [
+      { "name": "period", "value": "5" }
+    ]
+  },
+  {
+    "indicatorNewsIndex": 1,
+    "parameters": [
+      { "name": "period", "value": "20" }
+    ]
+  }
+]</code></pre>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>字段名</th>
+                                    <th>类型</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>indicatorNewsIndex</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td>指向 indicatorNews 数组的索引（从0开始）</td>
+                                </tr>
+                                <tr>
+                                    <td><code>parameters</code></td>
+                                    <td><span class="tag tag-enum">array</span></td>
+                                    <td>参数值配置数组</td>
+                                </tr>
+                                <tr>
+                                    <td><code>parameters[].name</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td>参数名称，需与指标定义中的参数名匹配</td>
+                                </tr>
+                                <tr>
+                                    <td><code>parameters[].value</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td>参数值（字符串格式）</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="conditions">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-tag">Part 3</span>
+                    <h2 class="section-title">交易条件配置</h2>
+                    <p class="section-desc">定义买入和卖出信号触发规则</p>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" data-tab="condition-json">JSON结构</button>
+                    <button class="tab" data-tab="condition-types">条件类型</button>
+                    <button class="tab" data-tab="condition-actions">买卖信号</button>
+                    <button class="tab" data-tab="condition-advanced">高级用法</button>
+                </div>
+
+                <div class="tab-content active" id="condition-json">
+                    <h3 style="margin-bottom: 20px;">条件JSON完整结构</h3>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">condition.json</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "indicatorIndex": 0,
+  "comparisonType": "indicator",
+  "comparedIndicatorIndex": 1,
+  "constantValue": "30",
+  "currentValuePath": "",
+  "comparedValuePath": "",
+  "operator": ">",
+  "conditionType": "crossover",
+  "action": "buy",
+  "group": 1,
+  "priority": 1,
+  "customCode": ""
+}</code></pre>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">字段详细说明</h3>
+                    
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>字段名</th>
+                                    <th>类型</th>
+                                    <th>必填</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>indicatorIndex</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td>指向 indicators 数组的索引</td>
+                                </tr>
+                                <tr>
+                                    <td><code>comparisonType</code></td>
+                                    <td><span class="tag tag-enum">enum</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td><code>constant</code>(与常量比较) 或 <code>indicator</code>(与指标比较)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>comparedIndicatorIndex</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td>条件性</td>
+                                    <td>当 comparisonType="indicator" 时必填</td>
+                                </tr>
+                                <tr>
+                                    <td><code>constantValue</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td>条件性</td>
+                                    <td>当 comparisonType="constant" 时必填</td>
+                                </tr>
+                                <tr>
+                                    <td><code>currentValuePath</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>从复杂对象提取值的路径，如 'macd'、'signal'</td>
+                                </tr>
+                                <tr>
+                                    <td><code>comparedValuePath</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>比较值的属性路径</td>
+                                </tr>
+                                <tr>
+                                    <td><code>operator</code></td>
+                                    <td><span class="tag tag-enum">enum</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td><code>></code> | <code>>=</code> | <code>==</code> | <code>!=</code> | <code>&lt;</code> | <code>&lt;=</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>conditionType</code></td>
+                                    <td><span class="tag tag-enum">enum</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td><code>value</code>(数值比较) 或 <code>crossover</code>(穿越检测)</td>
+                                </tr>
+                                <tr>
+                                    <td><code>action</code></td>
+                                    <td><span class="tag tag-enum">enum</span></td>
+                                    <td><span class="tag tag-required">必填</span></td>
+                                    <td><code>buy</code> | <code>sell</code> | <code>none</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>group</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>条件分组，同组用AND逻辑，不同组用OR逻辑</td>
+                                </tr>
+                                <tr>
+                                    <td><code>priority</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>组内优先级，数字越小优先级越高</td>
+                                </tr>
+                                <tr>
+                                    <td><code>customCode</code></td>
+                                    <td><span class="tag tag-string">string</span></td>
+                                    <td><span class="tag tag-optional">可选</span></td>
+                                    <td>自定义代码逻辑</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="condition-types">
+                    <h3 style="margin-bottom: 20px;">条件类型详解</h3>
+
+                    <div class="accordion">
+                        <div class="accordion-item open">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span class="accordion-icon" style="background: rgba(59, 130, 246, 0.15);">📊</span>
+                                    value - 数值比较
+                                </div>
+                                <span class="accordion-arrow">▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p style="color: var(--text-secondary); margin-bottom: 16px;">当指标值满足比较条件时触发信号。</p>
+                                    
+                                    <div class="code-block">
+                                        <div class="code-header">
+                                            <span class="code-title">示例：RSI低于30买入</span>
+                                        </div>
+                                        <pre><code class="language-json">{
+  "indicatorIndex": 0,
+  "comparisonType": "constant",
+  "constantValue": "30",
+  "operator": "<",
+  "conditionType": "value",
+  "action": "buy",
+  "group": 1,
+  "priority": 1
+}</code></pre>
+                                    </div>
+                                    
+                                    <p style="margin-top: 16px;"><strong>含义：</strong>当指标0的当前值 < 30 时，触发买入信号</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <div class="accordion-header" onclick="toggleAccordion(this)">
+                                <div class="accordion-title">
+                                    <span class="accordion-icon" style="background: rgba(16, 185, 129, 0.15);">📈</span>
+                                    crossover - 穿越检测
+                                </div>
+                                <span class="accordion-arrow">▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p style="color: var(--text-secondary); margin-bottom: 16px;">检测一条线是否穿越另一条线或常量。</p>
+                                    
+                                    <div class="info-box info">
+                                        <span class="info-box-icon">ℹ️</span>
+                                        <div class="info-box-content">
+                                            <h4>穿越判断规则</h4>
+                                            <p><strong>operator=">"</strong>：上穿（前一周期 ≤ 被比较值，当前 > 被比较值）<br>
+                                            <strong>operator="<"</strong>：下穿（前一周期 ≥ 被比较值，当前 < 被比较值）</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="code-block">
+                                        <div class="code-header">
+                                            <span class="code-title">示例：MA5上穿MA20买入</span>
+                                        </div>
+                                        <pre><code class="language-json">{
+  "indicatorIndex": 0,
+  "comparisonType": "indicator",
+  "comparedIndicatorIndex": 1,
+  "operator": ">",
+  "conditionType": "crossover",
+  "action": "buy",
+  "group": 1,
+  "priority": 1
+}</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">比较类型</h3>
+
+                    <div class="card-grid">
+                        <div class="card">
+                            <div class="card-icon green">🎯</div>
+                            <h3>constant - 与常量比较</h3>
+                            <p>将指标值与固定数值比较，如RSI与30/70比较。需要设置 <code>constantValue</code> 字段。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-icon blue">📊</div>
+                            <h3>indicator - 与指标比较</h3>
+                            <p>将两个指标值进行比较，如MA5与MA20比较。需要设置 <code>comparedIndicatorIndex</code> 字段。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="condition-actions">
+                    <h3 style="margin-bottom: 20px;">买卖信号定义</h3>
+
+                    <div class="card-grid">
+                        <div class="card">
+                            <div class="card-icon green">
+                                <span class="action-badge action-buy">📈 BUY</span>
+                            </div>
+                            <h3>action: "buy"</h3>
+                            <p>条件满足时执行买入操作。适用于做多策略或双向策略的开仓信号。</p>
+                        </div>
+                        <div class="card">
+                            <div class="card-icon" style="background: rgba(239, 68, 68, 0.15);">
+                                <span class="action-badge action-sell">📉 SELL</span>
+                            </div>
+                            <h3>action: "sell"</h3>
+                            <p>条件满足时执行卖出操作。适用于做多策略的平仓或做空策略的开仓。</p>
+                        </div>
+                    </div>
+
+                    <h3 style="margin: 32px 0 20px;">条件组合逻辑</h3>
+
+                    <div class="info-box info">
+                        <span class="info-box-icon">ℹ️</span>
+                        <div class="info-box-content">
+                            <h4>分组规则</h4>
+                            <p><strong>同组条件</strong>：使用 AND 逻辑，必须全部满足<br>
+                            <strong>不同组条件</strong>：使用 OR 逻辑，满足任一组即可</p>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">条件组合示例</span>
+                        </div>
+                        <pre><code class="language-json">"conditions": [
+  {
+    "indicatorIndex": 0,
+    "comparisonType": "indicator",
+    "comparedIndicatorIndex": 1,
+    "operator": ">",
+    "conditionType": "crossover",
+    "action": "buy",
+    "group": 1,
+    "priority": 1
+  },
+  {
+    "indicatorIndex": 2,
+    "comparisonType": "constant",
+    "constantValue": "50",
+    "operator": ">",
+    "conditionType": "value",
+    "action": "buy",
+    "group": 1,
+    "priority": 2
+  }
+]</code></pre>
+                    </div>
+
+                    <p style="margin-top: 16px; color: var(--text-secondary);">
+                        <strong>解读：</strong>买入需要同时满足两个条件（同组group=1）：<br>
+                        1. 指标0上穿指标1<br>
+                        2. 指标2大于50
+                    </p>
+                </div>
+
+                <div class="tab-content" id="condition-advanced">
+                    <h3 style="margin-bottom: 20px;">复杂对象属性路径</h3>
+
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                        对于返回对象数组的指标（如MACD），需要使用 <code>currentValuePath</code> 和 <code>comparedValuePath</code> 指定比较的属性。
+                    </p>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">MACD对象结构</span>
+                        </div>
+                        <pre><code class="language-javascript">// MACD指标返回的对象结构
+{
+  macd: 0.123,       // MACD线
+  signal: 0.098,     // 信号线
+  histogram: 0.025   // 柱状图
+}</code></pre>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">MACD金叉买入条件</span>
+                        </div>
+                        <pre><code class="language-json">{
+  "indicatorIndex": 0,
+  "comparisonType": "indicator",
+  "comparedIndicatorIndex": 0,
+  "currentValuePath": "macd",
+  "comparedValuePath": "signal",
+  "operator": ">",
+  "conditionType": "crossover",
+  "action": "buy",
+  "group": 1,
+  "priority": 1
+}</code></pre>
+                    </div>
+
+                    <p style="margin-top: 16px; color: var(--text-secondary);">
+                        <strong>解读：</strong>使用同一指标（indicatorIndex=0）的不同属性进行比较，MACD线上穿信号线时买入。
+                    </p>
+
+                    <h3 style="margin: 40px 0 20px;">自定义代码条件 (customCode)</h3>
+
+                    <div class="info-box info">
+                        <span class="info-box-icon">ℹ️</span>
+                        <div class="info-box-content">
+                            <h4>什么是自定义代码？</h4>
+                            <p>当标准条件无法满足复杂交易逻辑时，可以使用 <code>customCode</code> 字段编写JavaScript代码来实现自定义判断逻辑。代码在安全的沙箱环境中执行，必须返回boolean值。</p>
+                        </div>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">可用上下文变量</h4>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>变量名</th>
+                                    <th>类型</th>
+                                    <th>说明</th>
+                                    <th>示例</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>indicatorValues</code></td>
+                                    <td><span class="tag tag-enum">any[][]</span></td>
+                                    <td>所有指标的计算结果数组，二维数组结构</td>
+                                    <td><code>indicatorValues[0][index]</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>index</code></td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td>当前K线索引位置</td>
+                                    <td><code>index</code> 或 <code>index - 1</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>priceData</code></td>
+                                    <td><span class="tag tag-enum">PriceData[]</span></td>
+                                    <td>完整的价格数据数组</td>
+                                    <td><code>priceData[index].closePrice</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>current</code></td>
+                                    <td><span class="tag tag-enum">PriceData</span></td>
+                                    <td>当前K线数据（快捷访问）</td>
+                                    <td><code>current.closePrice</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>previous</code></td>
+                                    <td><span class="tag tag-enum">PriceData</span></td>
+                                    <td>前一根K线数据（快捷访问）</td>
+                                    <td><code>previous.closePrice</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>BigNumber</code></td>
+                                    <td><span class="tag tag-enum">Class</span></td>
+                                    <td>BigNumber类，用于高精度计算</td>
+                                    <td><code>new BigNumber(current.closePrice)</code></td>
+                                </tr>
+                                <tr>
+                                    <td><code>Math</code></td>
+                                    <td><span class="tag tag-enum">Object</span></td>
+                                    <td>JavaScript Math对象</td>
+                                    <td><code>Math.abs(value)</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">可用辅助函数</h4>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>函数名</th>
+                                    <th>参数</th>
+                                    <th>返回值</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>average(arr)</code></td>
+                                    <td>数字数组</td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td>计算数组的平均值</td>
+                                </tr>
+                                <tr>
+                                    <td><code>standardDeviation(arr)</code></td>
+                                    <td>数字数组</td>
+                                    <td><span class="tag tag-number">number</span></td>
+                                    <td>计算数组的标准差</td>
+                                </tr>
+                                <tr>
+                                    <td><code>getHistoricalData(start, end)</code></td>
+                                    <td>起始索引, 结束索引</td>
+                                    <td><span class="tag tag-enum">PriceData[]</span></td>
+                                    <td>获取指定范围的历史价格数据</td>
+                                </tr>
+                                <tr>
+                                    <td><code>getIndicatorHistoricalData(idx, start, end)</code></td>
+                                    <td>指标索引, 起始索引, 结束索引</td>
+                                    <td><span class="tag tag-enum">any[]</span></td>
+                                    <td>获取指定范围的指标历史数据</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">PriceData 数据结构</h4>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">current / previous 对象属性</span>
+                        </div>
+                        <pre><code class="language-javascript">{
+  timestamp: 1640995200000,    // 时间戳（毫秒）
+  openPrice: 47000.50,         // 开盘价
+  highPrice: 47500.00,         // 最高价
+  lowPrice: 46800.00,          // 最低价
+  closePrice: 47200.25,        // 收盘价
+  volume: 1250.75              // 成交量
+}</code></pre>
+                    </div>
+
+                    <div class="info-box warning">
+                        <span class="info-box-icon">⚠️</span>
+                        <div class="info-box-content">
+                            <h4>重要规则</h4>
+                            <p><strong>必须返回 boolean 值</strong>：自定义代码必须返回 <code>true</code> 或 <code>false</code><br>
+                            <strong>超时限制</strong>：代码执行超时时间为 10 分钟<br>
+                            <strong>错误处理</strong>：代码执行失败时返回 <code>false</code>，不会中断回测</p>
+                        </div>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">示例1：价格突破前高</h4>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">当收盘价突破最近20根K线最高价时买入</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-javascript">// 获取最近20根K线数据
+const history = getHistoricalData(index - 20, index - 1);
+if (!history || history.length < 20) return false;
+
+// 找出最高价
+const highestPrice = Math.max(...history.map(k => k.highPrice));
+
+// 当前收盘价突破前高
+return current.closePrice > highestPrice;</code></pre>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">示例2：指标穿越判断</h4>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">指标0上穿指标1的自定义实现</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-javascript">// 获取当前和前一个指标值
+const currentVal0 = indicatorValues[0][index];
+const previousVal0 = indicatorValues[0][index - 1];
+const currentVal1 = indicatorValues[1][index];
+const previousVal1 = indicatorValues[1][index - 1];
+
+// 检查是否有效
+if (currentVal0 == null || previousVal0 == null || 
+    currentVal1 == null || previousVal1 == null) {
+  return false;
+}
+
+// 上穿判断：前一根 <= 被比较值，当前 > 被比较值
+return previousVal0 <= previousVal1 && currentVal0 > currentVal1;</code></pre>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">示例3：多条件组合</h4>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">RSI低于30且价格在MA下方时买入</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-javascript">// 获取RSI值（指标0）
+const rsi = indicatorValues[0][index];
+// 获取MA值（指标1）
+const ma = indicatorValues[1][index];
+
+if (rsi == null || ma == null) return false;
+
+// RSI低于30且价格在MA下方
+return rsi < 30 && current.closePrice < ma;</code></pre>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">示例4：使用标准差判断波动</h4>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">价格波动率放大时买入</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-javascript">// 获取最近20根K线的收盘价
+const history = getHistoricalData(index - 20, index);
+if (!history || history.length < 20) return false;
+
+const closePrices = history.map(k => k.closePrice);
+
+// 计算标准差（波动率）
+const stdDev = standardDeviation(closePrices);
+const avgPrice = average(closePrices);
+
+// 计算变异系数
+const cv = stdDev / avgPrice;
+
+// 当波动率超过5%时触发
+return cv > 0.05;</code></pre>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">示例5：使用BigNumber精确计算</h4>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">精确计算价格变化百分比</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-javascript">if (!previous) return false;
+
+// 使用BigNumber进行精确计算
+const currentPrice = new BigNumber(current.closePrice);
+const prevPrice = new BigNumber(previous.closePrice);
+
+// 计算涨跌幅
+const changePercent = currentPrice.minus(prevPrice)
+  .dividedBy(prevPrice)
+  .multipliedBy(100)
+  .toNumber();
+
+// 涨幅超过3%时买入
+return changePercent > 3;</code></pre>
+                    </div>
+
+                    <h4 style="margin: 24px 0 16px;">完整JSON配置示例</h4>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">使用自定义代码的条件配置</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "indicatorIndex": 0,
+  "comparisonType": "constant",
+  "constantValue": "0",
+  "operator": ">",
+  "conditionType": "value",
+  "action": "buy",
+  "group": 1,
+  "priority": 1,
+  "customCode": "// 获取最近10根K线数据\nconst history = getHistoricalData(index - 10, index);\nif (!history || history.length < 10) return false;\n\n// 计算平均成交量\nconst volumes = history.map(k => k.volume);\nconst avgVolume = average(volumes);\n\n// 当前成交量是平均成交量的2倍以上\nreturn current.volume > avgVolume * 2;"
+}</code></pre>
+                    </div>
+
+                    <div class="info-box tip" style="margin-top: 24px;">
+                        <span class="info-box-icon">💡</span>
+                        <div class="info-box-content">
+                            <h4>最佳实践</h4>
+                            <p>• 始终检查数据有效性（null检查）<br>
+                            • 使用BigNumber处理价格计算，避免精度问题<br>
+                            • 代码尽量简洁，复杂逻辑可拆分为多个条件<br>
+                            • 利用辅助函数简化常见计算<br>
+                            • 测试时先用小数据集验证逻辑正确性</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="examples">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-tag">Part 4</span>
+                    <h2 class="section-title">完整示例</h2>
+                    <p class="section-desc">从零开始构建完整的交易策略</p>
+                </div>
+
+                <div class="example-selector">
+                    <button class="example-btn active" onclick="showExample('ma')">MA交叉策略</button>
+                    <button class="example-btn" onclick="showExample('rsi')">RSI超买超卖</button>
+                    <button class="example-btn" onclick="showExample('macd')">MACD金叉死叉</button>
+                    <button class="example-btn" onclick="showExample('profit')">带止盈止损</button>
+                </div>
+
+                <div id="example-ma" class="example-content">
+                    <div class="info-box tip">
+                        <span class="info-box-icon">💡</span>
+                        <div class="info-box-content">
+                            <h4>策略逻辑</h4>
+                            <p>使用MA5和MA20两条移动平均线，当MA5上穿MA20时买入，下穿时卖出。这是最经典的趋势跟踪策略之一。</p>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">MA交叉策略完整JSON</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "name": "MA交叉策略",
+  "description": "基于MA5和MA20移动平均线交叉的交易策略",
+  "positionType": "both",
+  "buyFee": 0.001,
+  "sellFee": 0.001,
+  "liquidationThreshold": 90,
+  "takeProfitRatio": null,
+  "stopLossRatio": null,
+  "indicatorNews": [
+    {
+      "name": "AI_MA_5",
+      "description": "[AI生成] 5日移动平均线",
+      "code": "function calculate(priceData, parameters) { const period = parameters.period || 5; const result = []; for (let i = 0; i < priceData.length; i++) { if (i < period - 1) { result.push(null); } else { let sum = new BigNumber(0); for (let j = 0; j < period; j++) { sum = sum.plus(new BigNumber(priceData[i - j].closePrice)); } result.push(sum.dividedBy(period).toNumber()); } } return result; }",
+      "parameters": [
+        { "name": "period", "description": "计算周期", "paramType": "number", "defaultValue": "5" }
+      ]
+    },
+    {
+      "name": "AI_MA_20",
+      "description": "[AI生成] 20日移动平均线",
+      "code": "function calculate(priceData, parameters) { const period = parameters.period || 20; const result = []; for (let i = 0; i < priceData.length; i++) { if (i < period - 1) { result.push(null); } else { let sum = new BigNumber(0); for (let j = 0; j < period; j++) { sum = sum.plus(new BigNumber(priceData[i - j].closePrice)); } result.push(sum.dividedBy(period).toNumber()); } } return result; }",
+      "parameters": [
+        { "name": "period", "description": "计算周期", "paramType": "number", "defaultValue": "20" }
+      ]
+    }
+  ],
+  "indicators": [
+    { "indicatorNewsIndex": 0, "parameters": [{ "name": "period", "value": "5" }] },
+    { "indicatorNewsIndex": 1, "parameters": [{ "name": "period", "value": "20" }] }
+  ],
+  "conditions": [
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "indicator",
+      "comparedIndicatorIndex": 1,
+      "currentValuePath": "",
+      "comparedValuePath": "",
+      "operator": ">",
+      "conditionType": "crossover",
+      "action": "buy",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    },
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "indicator",
+      "comparedIndicatorIndex": 1,
+      "currentValuePath": "",
+      "comparedValuePath": "",
+      "operator": "<",
+      "conditionType": "crossover",
+      "action": "sell",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+
+                <div id="example-rsi" class="example-content" style="display: none;">
+                    <div class="info-box tip">
+                        <span class="info-box-icon">💡</span>
+                        <div class="info-box-content">
+                            <h4>策略逻辑</h4>
+                            <p>使用14周期RSI指标，当RSI低于30（超卖）时买入，高于70（超买）时卖出。只做多方向交易。</p>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">RSI超买超卖策略完整JSON</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "name": "RSI超买超卖策略",
+  "description": "基于RSI指标的超买超卖交易策略",
+  "positionType": "long",
+  "buyFee": 0.001,
+  "sellFee": 0.001,
+  "liquidationThreshold": 90,
+  "takeProfitRatio": null,
+  "stopLossRatio": null,
+  "indicatorNews": [
+    {
+      "name": "AI_RSI_14",
+      "description": "[AI生成] 14周期相对强弱指标",
+      "code": "function calculate(priceData, parameters) { const period = parameters.period || 14; const result = []; let gains = new BigNumber(0); let losses = new BigNumber(0); for (let i = 0; i < priceData.length; i++) { if (i === 0) { result.push(null); continue; } const currentPrice = new BigNumber(priceData[i].closePrice); const prevPrice = new BigNumber(priceData[i - 1].closePrice); const change = currentPrice.minus(prevPrice); if (i < period) { if (change.isGreaterThanOrEqualTo(0)) { gains = gains.plus(change); } else { losses = losses.plus(change.abs()); } if (i === period - 1) { const avgGain = gains.dividedBy(period); const avgLoss = losses.dividedBy(period); let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } else { result.push(null); } } else { const periodBN = new BigNumber(period); const periodMinus1 = new BigNumber(period - 1); const newGain = change.isGreaterThanOrEqualTo(0) ? change : new BigNumber(0); const newLoss = change.isLessThan(0) ? change.abs() : new BigNumber(0); const avgGain = gains.multipliedBy(periodMinus1).plus(newGain).dividedBy(periodBN); const avgLoss = losses.multipliedBy(periodMinus1).plus(newLoss).dividedBy(periodBN); gains = avgGain; losses = avgLoss; let rsi; if (avgLoss.isZero()) { rsi = new BigNumber(100); } else { const rs = avgGain.dividedBy(avgLoss); rsi = new BigNumber(100).minus(new BigNumber(100).dividedBy(rs.plus(1))); } result.push(rsi.toNumber()); } } return result; }",
+      "parameters": [
+        { "name": "period", "description": "计算周期", "paramType": "number", "defaultValue": "14" }
+      ]
+    }
+  ],
+  "indicators": [
+    { "indicatorNewsIndex": 0, "parameters": [{ "name": "period", "value": "14" }] }
+  ],
+  "conditions": [
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "constant",
+      "constantValue": "30",
+      "currentValuePath": "",
+      "comparedValuePath": "",
+      "operator": "<",
+      "conditionType": "value",
+      "action": "buy",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    },
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "constant",
+      "constantValue": "70",
+      "currentValuePath": "",
+      "comparedValuePath": "",
+      "operator": ">",
+      "conditionType": "value",
+      "action": "sell",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+
+                <div id="example-macd" class="example-content" style="display: none;">
+                    <div class="info-box tip">
+                        <span class="info-box-icon">💡</span>
+                        <div class="info-box-content">
+                            <h4>策略逻辑</h4>
+                            <p>使用MACD指标的金叉死叉信号。当MACD线上穿信号线时买入，下穿时卖出。展示了复杂对象属性路径的使用方法。</p>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">MACD金叉死叉策略完整JSON</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "name": "MACD金叉死叉策略",
+  "description": "使用MACD指标的金叉死叉信号进行交易",
+  "positionType": "long",
+  "buyFee": 0.001,
+  "sellFee": 0.001,
+  "liquidationThreshold": 90,
+  "takeProfitRatio": null,
+  "stopLossRatio": null,
+  "indicatorNews": [
+    {
+      "name": "AI_MACD",
+      "description": "[AI生成] MACD指标",
+      "code": "function calculate(priceData, parameters) { const fastPeriod = parameters.fastPeriod || 12; const slowPeriod = parameters.slowPeriod || 26; const signalPeriod = parameters.signalPeriod || 9; const result = []; // 计算EMA和MACD逻辑... return result.map(r => ({ macd: r.macd, signal: r.signal, histogram: r.histogram })); }",
+      "parameters": [
+        { "name": "fastPeriod", "description": "快速周期", "paramType": "number", "defaultValue": "12" },
+        { "name": "slowPeriod", "description": "慢速周期", "paramType": "number", "defaultValue": "26" },
+        { "name": "signalPeriod", "description": "信号线周期", "paramType": "number", "defaultValue": "9" }
+      ]
+    }
+  ],
+  "indicators": [
+    { 
+      "indicatorNewsIndex": 0, 
+      "parameters": [
+        { "name": "fastPeriod", "value": "12" },
+        { "name": "slowPeriod", "value": "26" },
+        { "name": "signalPeriod", "value": "9" }
+      ] 
+    }
+  ],
+  "conditions": [
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "indicator",
+      "comparedIndicatorIndex": 0,
+      "currentValuePath": "macd",
+      "comparedValuePath": "signal",
+      "operator": ">",
+      "conditionType": "crossover",
+      "action": "buy",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    },
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "indicator",
+      "comparedIndicatorIndex": 0,
+      "currentValuePath": "macd",
+      "comparedValuePath": "signal",
+      "operator": "<",
+      "conditionType": "crossover",
+      "action": "sell",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    }
+  ]
+}</code></pre>
+                    </div>
+                </div>
+
+                <div id="example-profit" class="example-content" style="display: none;">
+                    <div class="info-box tip">
+                        <span class="info-box-icon">💡</span>
+                        <div class="info-box-content">
+                            <h4>策略逻辑</h4>
+                            <p>MA交叉策略，增加了止盈15%和止损8%的风控设置。适合追求稳定收益的保守型交易者。</p>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span class="code-title">带止盈止损的MA交叉策略</span>
+                            <div class="code-actions">
+                                <button class="code-btn" onclick="copyCode(this)">复制</button>
+                            </div>
+                        </div>
+                        <pre><code class="language-json">{
+  "name": "激进MA交叉策略",
+  "description": "基于MA5和MA20移动平均线交叉的激进交易策略，止盈15%，止损8%",
+  "positionType": "both",
+  "buyFee": 0.001,
+  "sellFee": 0.001,
+  "liquidationThreshold": 90,
+  "takeProfitRatio": 0.15,
+  "stopLossRatio": 0.08,
+  "indicatorNews": [
+    {
+      "name": "AI_MA_5",
+      "description": "[AI生成] 5日移动平均线",
+      "code": "function calculate(priceData, parameters) { const period = parameters.period || 5; const result = []; for (let i = 0; i < priceData.length; i++) { if (i < period - 1) { result.push(null); } else { let sum = new BigNumber(0); for (let j = 0; j < period; j++) { sum = sum.plus(new BigNumber(priceData[i - j].closePrice)); } result.push(sum.dividedBy(period).toNumber()); } } return result; }",
+      "parameters": [
+        { "name": "period", "description": "计算周期", "paramType": "number", "defaultValue": "5" }
+      ]
+    },
+    {
+      "name": "AI_MA_20",
+      "description": "[AI生成] 20日移动平均线",
+      "code": "function calculate(priceData, parameters) { const period = parameters.period || 20; const result = []; for (let i = 0; i < priceData.length; i++) { if (i < period - 1) { result.push(null); } else { let sum = new BigNumber(0); for (let j = 0; j < period; j++) { sum = sum.plus(new BigNumber(priceData[i - j].closePrice)); } result.push(sum.dividedBy(period).toNumber()); } } return result; }",
+      "parameters": [
+        { "name": "period", "description": "计算周期", "paramType": "number", "defaultValue": "20" }
+      ]
+    }
+  ],
+  "indicators": [
+    { "indicatorNewsIndex": 0, "parameters": [{ "name": "period", "value": "5" }] },
+    { "indicatorNewsIndex": 1, "parameters": [{ "name": "period", "value": "20" }] }
+  ],
+  "conditions": [
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "indicator",
+      "comparedIndicatorIndex": 1,
+      "currentValuePath": "",
+      "comparedValuePath": "",
+      "operator": ">",
+      "conditionType": "crossover",
+      "action": "buy",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    },
+    {
+      "indicatorIndex": 0,
+      "comparisonType": "indicator",
+      "comparedIndicatorIndex": 1,
+      "currentValuePath": "",
+      "comparedValuePath": "",
+      "operator": "<",
+      "conditionType": "crossover",
+      "action": "sell",
+      "group": 1,
+      "priority": 1,
+      "customCode": ""
+    }
+  ]
+}</code></pre>
+                    </div>
+
+                    <div class="info-box warning" style="margin-top: 24px;">
+                        <span class="info-box-icon">⚠️</span>
+                        <div class="info-box-content">
+                            <h4>止盈止损计算说明</h4>
+                            <p><strong>止盈比例</strong>：takeProfitRatio = 0.15 表示盈利15%时自动平仓<br>
+                            <strong>止损比例</strong>：stopLossRatio = 0.08 表示亏损8%时自动平仓<br>
+                            这些比例是相对于开仓价格的涨跌幅度。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section" id="checklist">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-tag">检查清单</span>
+                    <h2 class="section-title">必填字段检查</h2>
+                    <p class="section-desc">在提交策略前，请确保以下字段都已正确填写</p>
+                </div>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">📋 策略基础信息</h3>
+                        <ul class="property-list">
+                            <li class="property-item">
+                                <span class="property-name">name</span>
+                                <span class="property-desc">策略名称不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">indicatorNews</span>
+                                <span class="property-desc">指标定义数组不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">indicators</span>
+                                <span class="property-desc">指标配置数组不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">conditions</span>
+                                <span class="property-desc">条件数组不能为空</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">🎯 条件字段检查</h3>
+                        <ul class="property-list">
+                            <li class="property-item">
+                                <span class="property-name">indicatorIndex</span>
+                                <span class="property-desc">不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">comparisonType</span>
+                                <span class="property-desc">必须是 "indicator" 或 "constant"</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">operator</span>
+                                <span class="property-desc">不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">conditionType</span>
+                                <span class="property-desc">不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">action</span>
+                                <span class="property-desc">必须是 "buy"、"sell" 或 "none"</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;">📈 指标字段检查</h3>
+                        <ul class="property-list">
+                            <li class="property-item">
+                                <span class="property-name">indicatorNews[].name</span>
+                                <span class="property-desc">指标名称不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">indicatorNews[].code</span>
+                                <span class="property-desc">计算代码不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">parameters[].name</span>
+                                <span class="property-desc">参数名不能为空</span>
+                            </li>
+                            <li class="property-item">
+                                <span class="property-name">parameters[].paramType</span>
+                                <span class="property-desc">必须是 "number"、"string" 或 "boolean"</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Crypto Quant Platform - 量化策略开发指南</p>
+            <p style="margin-top: 8px; font-size: 0.8rem;">© 2024 All rights reserved</p>
+        </div>
+    </footer>
+
+    <nav class="quick-nav">
+        <a href="#overview" class="quick-nav-dot active" title="概述"></a>
+        <a href="#indicators" class="quick-nav-dot" title="指标开发"></a>
+        <a href="#strategies" class="quick-nav-dot" title="策略开发"></a>
+        <a href="#conditions" class="quick-nav-dot" title="交易条件"></a>
+        <a href="#examples" class="quick-nav-dot" title="完整示例"></a>
+    </nav>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            hljs.highlightAll();
+            
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    const parent = this.closest('.section');
+                    
+                    parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    parent.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    this.classList.add('active');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+
+            const header = document.getElementById('header');
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 50) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
+            });
+
+            const navDots = document.querySelectorAll('.quick-nav-dot');
+            const sections = document.querySelectorAll('section[id]');
+            
+            window.addEventListener('scroll', function() {
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (scrollY >= sectionTop - 200) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                
+                navDots.forEach(dot => {
+                    dot.classList.remove('active');
+                    if (dot.getAttribute('href') === '#' + current) {
+                        dot.classList.add('active');
+                    }
+                });
+            });
+
+            const navLinks = document.querySelectorAll('.nav-links a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        });
+
+        function toggleAccordion(header) {
+            const item = header.parentElement;
+            item.classList.toggle('open');
+        }
+
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block');
+            const code = codeBlock.querySelector('code').textContent;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                button.textContent = '已复制';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = '复制';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+
+        function showExample(type) {
+            document.querySelectorAll('.example-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.example-content').forEach(content => content.style.display = 'none');
+            
+            event.target.classList.add('active');
+            document.getElementById('example-' + type).style.display = 'block';
+        }
+    </script>
+</body>
+</html>

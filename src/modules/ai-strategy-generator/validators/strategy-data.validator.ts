@@ -76,13 +76,13 @@ export interface ValidatedStrategyData {
     parameters: Array<{ name: string; value: string }>;
   }>;
   conditions: Array<{
-    indicatorIndex: number;
-    comparisonType: string;
+    indicatorIndex?: number;
+    comparisonType?: string;
     comparedIndicatorIndex?: number;
     constantValue?: string;
     currentValuePath: string;
     comparedValuePath: string;
-    operator: string;
+    operator?: string;
     conditionType: string;
     action: string;
     group: number;
@@ -191,6 +191,17 @@ export class StrategyDataValidator {
   private static validateCondition(condition: AiStrategyCondition, index: number): string[] {
     const errors: string[] = [];
 
+    if (!condition.conditionType || !['value', 'crossover', 'custom'].includes(condition.conditionType)) {
+      errors.push(`条件[${index}].conditionType 必须是 value, crossover 或 custom`);
+    }
+
+    if (condition.conditionType === 'custom') {
+      if (!condition.customCode || condition.customCode.trim() === '') {
+        errors.push(`条件[${index}].customCode 在 conditionType='custom' 时不能为空`);
+      }
+      return errors;
+    }
+
     if (condition.indicatorIndex === undefined || condition.indicatorIndex === null) {
       errors.push(`条件[${index}].indicatorIndex 不能为空`);
     }
@@ -201,10 +212,6 @@ export class StrategyDataValidator {
 
     if (!condition.operator || !['>', '>=', '==', '!=', '<', '<='].includes(condition.operator)) {
       errors.push(`条件[${index}].operator 必须是 >, >=, ==, !=, < 或 <=`);
-    }
-
-    if (!condition.conditionType || !['value', 'crossover'].includes(condition.conditionType)) {
-      errors.push(`条件[${index}].conditionType 必须是 value 或 crossover`);
     }
 
     if (!condition.action || !['buy', 'sell', 'none'].includes(condition.action)) {
@@ -255,13 +262,13 @@ export class StrategyDataValidator {
         })) || [],
       })) || [],
       conditions: data.conditions?.map(condition => ({
-        indicatorIndex: condition.indicatorIndex!,
-        comparisonType: condition.comparisonType!,
+        indicatorIndex: condition.indicatorIndex,
+        comparisonType: condition.comparisonType,
         comparedIndicatorIndex: condition.comparedIndicatorIndex,
         constantValue: condition.constantValue,
         currentValuePath: condition.currentValuePath ?? '',
         comparedValuePath: condition.comparedValuePath ?? '',
-        operator: condition.operator!,
+        operator: condition.operator,
         conditionType: condition.conditionType!,
         action: condition.action!,
         group: condition.group ?? 1,

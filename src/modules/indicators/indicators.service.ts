@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Indicator } from './entities/indicator.entity';
 import { IndicatorParameter } from './entities/indicator-parameter.entity';
 import { CreateIndicatorDto } from './dto/create-indicator.dto';
+import { UpdateIndicatorDto } from './dto/update-indicator.dto';
 import { RedisService } from '../common/services/redis.service';
 import { ProcessExecutorService } from '../common/services/process-executor.service';
 import { PriceDataService } from '../price-data/price-data.service';
@@ -22,7 +23,7 @@ export class IndicatorsService {
     private redisService: RedisService,
     private processExecutor: ProcessExecutorService,
     private priceDataService: PriceDataService,
-  ) {}
+  ) { }
 
   async findByName(name: string): Promise<Indicator | null> {
     return this.indicatorRepository.findOne({ where: { name } });
@@ -62,7 +63,7 @@ export class IndicatorsService {
 
   async findAll(): Promise<IndicatorWithParameters[]> {
     const cacheKey = 'indicators:all';
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -70,8 +71,8 @@ export class IndicatorsService {
         // 获取每个指标的参数
         const indicatorsWithParams = await Promise.all(
           indicators.map(async (indicator) => {
-            const parameters = await this.parameterRepository.find({ 
-              where: { indicatorId: indicator.id } 
+            const parameters = await this.parameterRepository.find({
+              where: { indicatorId: indicator.id }
             });
             return {
               ...indicator,
@@ -87,7 +88,7 @@ export class IndicatorsService {
 
   async findOne(id: number): Promise<IndicatorWithParameters> {
     const cacheKey = `indicator:detail:${id}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -95,12 +96,12 @@ export class IndicatorsService {
         if (!indicator) {
           return null;
         }
-        
+
         // 获取指标参数
-        const parameters = await this.parameterRepository.find({ 
-          where: { indicatorId: id } 
+        const parameters = await this.parameterRepository.find({
+          where: { indicatorId: id }
         });
-        
+
         return {
           ...indicator,
           parameters,
@@ -110,9 +111,70 @@ export class IndicatorsService {
     );
   }
 
+  async update(id: number, updateIndicatorDto: UpdateIndicatorDto): Promise<IndicatorWithParameters> {
+    const indicator = await this.indicatorRepository.findOne({ where: { id } });
+    if (!indicator) {
+      throw new Error(`Indicator with id ${id} not found`);
+    }
+
+    // 更新基本信息
+    if (updateIndicatorDto.name) indicator.name = updateIndicatorDto.name;
+    if (updateIndicatorDto.description) indicator.description = updateIndicatorDto.description;
+    if (updateIndicatorDto.calculationCode) indicator.calculationCode = updateIndicatorDto.calculationCode;
+
+    await this.indicatorRepository.save(indicator);
+
+    // 如果提供了参数，则更新参数
+    if (updateIndicatorDto.parameters) {
+      // 先删除旧参数
+      await this.parameterRepository.delete({ indicatorId: id });
+
+      // 添加新参数
+      if (updateIndicatorDto.parameters.length > 0) {
+        const parameters = updateIndicatorDto.parameters.map(param => {
+          return this.parameterRepository.create({
+            indicatorId: id,
+            name: param.name,
+            description: param.description,
+            defaultValue: param.defaultValue,
+            paramType: param.paramType,
+          });
+        });
+
+        await this.parameterRepository.save(parameters);
+      }
+    }
+
+    // 清除相关缓存
+    await this.clearIndicatorCache(id);
+
+    // 返回更新后的指标
+    return this.findOne(id);
+  }
+
+  /**
+   * 删除指标
+   * @param id 指标ID
+   */
+  async remove(id: number): Promise<void> {
+    const indicator = await this.indicatorRepository.findOne({ where: { id } });
+    if (!indicator) {
+      throw new Error(`Indicator with id ${id} not found`);
+    }
+
+    // 1. 删除指标参数
+    await this.parameterRepository.delete({ indicatorId: id });
+
+    // 2. 删除指标本身
+    await this.indicatorRepository.delete(id);
+
+    // 3. 清除相关缓存
+    await this.clearIndicatorCache(id);
+  }
+
   async getIndicatorParameters(indicatorId: number): Promise<IndicatorParameter[]> {
     const cacheKey = `indicator_params_list:${indicatorId}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -124,7 +186,7 @@ export class IndicatorsService {
 
   async findParameterById(parameterId: number): Promise<IndicatorParameter | null> {
     const cacheKey = `indicator_param_detail:${parameterId}`;
-    
+
     return this.redisService.getOrSet(
       cacheKey,
       async () => {
@@ -135,8 +197,8 @@ export class IndicatorsService {
   }
 
   async calculateIndicator(
-    indicatorId: number, 
-    priceData: any[], 
+    indicatorId: number,
+    priceData: any[],
     parameters: Record<string, any>
   ): Promise<any[]> {
     // 从Redis获取指标
@@ -147,13 +209,13 @@ export class IndicatorsService {
       if (!dbIndicator) {
         throw new Error(`Indicator with id ${indicatorId} not found`);
       }
-      
+
       // 保存到Redis
       await this.saveIndicatorToRedis(indicatorId);
-      
+
       return this.executeIndicatorCode(dbIndicator.calculationCode, priceData, parameters);
     }
-    
+
     return this.executeIndicatorCode(indicator.calculationCode, priceData, parameters);
   }
 
@@ -233,8 +295,8 @@ export class IndicatorsService {
   }
 
   private async executeIndicatorCode(
-    code: string, 
-    priceData: any[], 
+    code: string,
+    priceData: any[],
     parameters: Record<string, any>
   ): Promise<any[]> {
     try {
@@ -242,13 +304,13 @@ export class IndicatorsService {
       const workerCode = `
         ${code}
       `;
-      
+
       // 准备传递给子进程的数据
       const processData = {
         priceData: JSON.parse(JSON.stringify(priceData)), // 深拷贝防止修改原始数据
         parameters
       };
-      
+
       // 在子进程中执行代码
       return await this.processExecutor.executeInProcess(
         workerCode,
@@ -284,10 +346,10 @@ export class IndicatorsService {
         if (!indicator) {
           return null;
         }
-        
+
         // 获取指标参数
         const parameters = await this.parameterRepository.find({ where: { indicatorId } });
-        
+
         // 返回完整的指标对象
         return {
           ...indicator,
@@ -306,7 +368,7 @@ export class IndicatorsService {
     await this.redisService.delete(`indicator:detail:${indicatorId}`);
     await this.redisService.delete(`indicator:${indicatorId}`);
     await this.redisService.delete(`indicator_params_list:${indicatorId}`);
-    
+
     // 清除所有指标列表缓存
     await this.redisService.delete('indicators:all');
   }
