@@ -1,0 +1,20 @@
+{
+  "title": "批量回测功能测试执行报告",
+  "generatedAt": "2026-03-16T17:44:03.303Z",
+  "summary": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "passRate": "0%",
+    "duration": "8661ms",
+    "startTime": "2026-03-16T17:43:54.642Z",
+    "endTime": "2026-03-16T17:44:03.303Z"
+  },
+  "environment": {
+    "apiUrl": "http://localhost:3099",
+    "nodeVersion": "v24.12.0",
+    "platform": "win32"
+  },
+  "suites": []
+}

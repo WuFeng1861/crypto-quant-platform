@@ -129,11 +129,11 @@ describe('BatchBacktestService', () => {
       await expect(service.createBatchBacktest(mockDto)).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw error when pairIds exceed 500', async () => {
+    it('should throw error when pairIds exceed 10000', async () => {
       const mockStrategy = { id: 1, name: 'Test Strategy' };
       strategiesService.findOne.mockResolvedValue(mockStrategy as any);
 
-      const pairIds = Array.from({ length: 501 }, (_, i) => i + 1);
+      const pairIds = Array.from({ length: 10001 }, (_, i) => i + 1);
 
       await expect(
         service.createBatchBacktest({ ...mockDto, pairIds }),
@@ -326,6 +326,34 @@ describe('BatchBacktestService', () => {
       batchRepo.findOne.mockResolvedValue(mockBatch as any);
 
       await expect(service.forceRetryItems(1, { pairIds: [] })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('Queue Management', () => {
+    it('should get queue status', async () => {
+      const status = await service.getQueueStatus();
+
+      expect(status).toHaveProperty('isProcessing');
+      expect(status).toHaveProperty('queueLength');
+      expect(status).toHaveProperty('maxQueueLength');
+      expect(status).toHaveProperty('estimatedWaitTime');
+    });
+
+    it('should get queue list', async () => {
+      batchRepo.findOne.mockResolvedValue({
+        id: 1,
+        strategyId: 1,
+        totalPairs: 10,
+      } as any);
+
+      const result = await service.getQueueList(1, 20);
+
+      expect(result).toHaveProperty('items');
+      expect(result).toHaveProperty('pagination');
+    });
+
+    it('should throw error when canceling non-existent queue task', async () => {
+      await expect(service.cancelQueueTask(99999)).rejects.toThrow(NotFoundException);
     });
   });
 });

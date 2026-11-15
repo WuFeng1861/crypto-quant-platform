@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -200,6 +201,41 @@ export class BatchBacktestController {
     return {
       success: true,
       data: summary,
+    };
+  }
+}
+
+@Controller('backtest/queue')
+export class BacktestQueueController {
+  constructor(private readonly batchBacktestService: BatchBacktestService) {}
+
+  @Get('status')
+  async getStatus() {
+    const status = await this.batchBacktestService.getQueueStatus();
+    return {
+      success: true,
+      data: status,
+    };
+  }
+
+  @Get()
+  async getQueueList(
+    @Query('page', ParseIntPipe) page: number = 1,
+    @Query('limit', ParseIntPipe) limit: number = 20,
+  ) {
+    const result = await this.batchBacktestService.getQueueList(page, limit);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Delete(':id')
+  async cancelTask(@Param('id', ParseIntPipe) id: number) {
+    await this.batchBacktestService.cancelQueueTask(id);
+    return {
+      success: true,
+      message: '任务已从队列中移除',
     };
   }
 }

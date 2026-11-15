@@ -1,12 +1,13 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 export enum BatchBacktestStatus {
-  PENDING = 'pending',
-  RUNNING = 'running',
-  PAUSED = 'paused',
-  COMPLETED = 'completed',
-  CANCELLED = 'cancelled',
-  FAILED = 'failed'
+  QUEUED = 'queued',         // 队列中等待
+  PENDING = 'pending',       // 待执行（已出队）
+  RUNNING = 'running',       // 执行中
+  PAUSED = 'paused',         // 已暂停
+  COMPLETED = 'completed',   // 已完成
+  CANCELLED = 'cancelled',   // 已取消
+  FAILED = 'failed'          // 失败
 }
 
 @Entity('batch_backtests')
@@ -20,10 +21,10 @@ export class BatchBacktest {
   @Column({ name: 'timeframe_id' })
   timeframeId: number;
 
-  @Column({ name: 'start_time', type: 'timestamp' })
+  @Column({ name: 'start_time', type: 'timestamp', nullable: true })
   startTime: Date;
 
-  @Column({ name: 'end_time', type: 'timestamp' })
+  @Column({ name: 'end_time', type: 'timestamp', nullable: true })
   endTime: Date;
 
   @Column({ name: 'initial_capital', type: 'decimal', precision: 20, scale: 8 })
@@ -51,6 +52,9 @@ export class BatchBacktest {
 
   @Column({ name: 'failed_pairs', default: 0 })
   failedPairs: number;
+
+  @Column({ name: 'progress', type: 'decimal', precision: 5, scale: 2, default: 0 })
+  progress: number;
 
   @Column({ name: 'current_pair_id', nullable: true })
   currentPairId: number;

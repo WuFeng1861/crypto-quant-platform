@@ -1,0 +1,945 @@
+{
+  "title": "批量回测功能测试执行报告",
+  "generatedAt": "2026-03-16T18:15:26.514Z",
+  "summary": {
+    "total": 82,
+    "passed": 15,
+    "failed": 49,
+    "skipped": 18,
+    "passRate": "18.29%",
+    "duration": "8814ms",
+    "startTime": "2026-03-16T18:15:17.700Z",
+    "endTime": "2026-03-16T18:15:26.514Z"
+  },
+  "environment": {
+    "apiUrl": "http://localhost:3099",
+    "nodeVersion": "v24.12.0",
+    "platform": "win32"
+  },
+  "suites": [
+    {
+      "name": "POST /backtest/batch - 创建批量任务",
+      "tests": [
+        {
+          "name": "TC-01-001: 创建批量任务-全部交易对",
+          "status": "failed",
+          "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+          "duration": 3031,
+          "timestamp": "2026-03-16T18:15:20.762Z"
+        },
+        {
+          "name": "TC-01-002: 创建批量任务-指定交易对",
+          "status": "failed",
+          "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+          "duration": 30,
+          "timestamp": "2026-03-16T18:15:20.794Z"
+        },
+        {
+          "name": "TC-01-003: 创建批量任务-无效策略",
+          "status": "failed",
+          "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mfalse\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+          "duration": 38,
+          "timestamp": "2026-03-16T18:15:20.833Z"
+        },
+        {
+          "name": "TC-01-004: 创建批量任务-无效交易对",
+          "status": "failed",
+          "error": "Cannot read properties of undefined (reading 'code')",
+          "duration": 26,
+          "timestamp": "2026-03-16T18:15:20.860Z"
+        },
+        {
+          "name": "TC-01-005: 创建批量任务-超过10000个交易对",
+          "status": "failed",
+          "error": "Cannot read properties of undefined (reading 'code')",
+          "duration": 12,
+          "timestamp": "2026-03-16T18:15:20.874Z"
+        },
+        {
+          "name": "TC-01-006: 创建批量任务-空交易对列表",
+          "status": "passed",
+          "error": null,
+          "duration": 4804,
+          "timestamp": "2026-03-16T18:15:25.680Z"
+        },
+        {
+          "name": "TC-01-007: 创建批量任务-队列已满",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:25.681Z"
+        },
+        {
+          "name": "TC-01-008: 创建批量任务-无效参数",
+          "status": "passed",
+          "error": null,
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:25.684Z"
+        }
+      ],
+      "passed": 2,
+      "failed": 5,
+      "skipped": 1,
+      "total": 8
+    },
+    {
+      "name": "GET /backtest/batch - 查询批量任务",
+      "tests": [
+        {
+          "name": "TC-02-001: 查询批量任务列表-默认参数",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:25.687Z"
+        },
+        {
+          "name": "TC-02-002: 查询批量任务列表-带状态过滤",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:25.691Z"
+        },
+        {
+          "name": "TC-02-003: 查询批量任务列表-分页",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 2,
+          "timestamp": "2026-03-16T18:15:25.694Z"
+        },
+        {
+          "name": "TC-02-004: 查询批量任务详情-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 11,
+          "timestamp": "2026-03-16T18:15:25.706Z"
+        },
+        {
+          "name": "TC-02-005: 查询批量任务详情-不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 2,
+          "timestamp": "2026-03-16T18:15:25.709Z"
+        },
+        {
+          "name": "TC-02-006: 查询子任务列表-默认",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 18,
+          "timestamp": "2026-03-16T18:15:25.728Z"
+        },
+        {
+          "name": "TC-02-007: 查询子任务列表-带状态过滤",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 15,
+          "timestamp": "2026-03-16T18:15:25.745Z"
+        },
+        {
+          "name": "TC-02-008: 查询子任务列表-分页",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 20,
+          "timestamp": "2026-03-16T18:15:25.767Z"
+        },
+        {
+          "name": "TC-02-009: 查询子任务列表-批量任务不存在",
+          "status": "failed",
+          "error": "Cannot read properties of undefined (reading 'status')",
+          "duration": 23,
+          "timestamp": "2026-03-16T18:15:25.791Z"
+        },
+        {
+          "name": "TC-02-010: 查询子任务详情-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 12,
+          "timestamp": "2026-03-16T18:15:25.804Z"
+        },
+        {
+          "name": "TC-02-011: 查询子任务详情-不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 12,
+          "timestamp": "2026-03-16T18:15:25.818Z"
+        },
+        {
+          "name": "TC-02-012: 查询进度-成功",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 13,
+          "timestamp": "2026-03-16T18:15:25.832Z"
+        },
+        {
+          "name": "TC-02-013: 查询进度-任务不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 4,
+          "timestamp": "2026-03-16T18:15:25.838Z"
+        },
+        {
+          "name": "TC-02-014: 查询进度-实时更新",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:25.839Z"
+        },
+        {
+          "name": "TC-02-015: 查询历史任务-时间范围过滤",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 5,
+          "timestamp": "2026-03-16T18:15:25.845Z"
+        },
+        {
+          "name": "TC-02-016: 查询历史任务-策略过滤",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 9,
+          "timestamp": "2026-03-16T18:15:25.857Z"
+        },
+        {
+          "name": "TC-02-017: 查询历史任务-组合过滤",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 4,
+          "timestamp": "2026-03-16T18:15:25.864Z"
+        },
+        {
+          "name": "TC-02-018: 查询任务统计-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 2,
+          "timestamp": "2026-03-16T18:15:25.868Z"
+        },
+        {
+          "name": "TC-02-019: 查询任务统计-无权限",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:25.871Z"
+        },
+        {
+          "name": "TC-02-020: 导出任务结果-CSV格式",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 17,
+          "timestamp": "2026-03-16T18:15:25.889Z"
+        },
+        {
+          "name": "TC-02-021: 导出任务结果-JSON格式",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 15,
+          "timestamp": "2026-03-16T18:15:25.906Z"
+        },
+        {
+          "name": "TC-02-022: 导出任务结果-任务未完成",
+          "status": "failed",
+          "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected value: \u001b[32m404\u001b[39m\nReceived array: \u001b[31m[202, 400]\u001b[39m",
+          "duration": 13,
+          "timestamp": "2026-03-16T18:15:25.920Z"
+        }
+      ],
+      "passed": 3,
+      "failed": 17,
+      "skipped": 2,
+      "total": 22
+    },
+    {
+      "name": "任务控制 API",
+      "tests": [
+        {
+          "name": "TC-03-001: 启动任务-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 10,
+          "timestamp": "2026-03-16T18:15:25.931Z"
+        },
+        {
+          "name": "TC-03-002: 启动任务-任务不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:25.936Z"
+        },
+        {
+          "name": "TC-03-003: 启动任务-状态不允许",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 11,
+          "timestamp": "2026-03-16T18:15:25.948Z"
+        },
+        {
+          "name": "TC-03-004: 暂停任务-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 13,
+          "timestamp": "2026-03-16T18:15:25.962Z"
+        },
+        {
+          "name": "TC-03-005: 暂停任务-任务不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 2,
+          "timestamp": "2026-03-16T18:15:25.965Z"
+        },
+        {
+          "name": "TC-03-006: 暂停任务-状态不允许",
+          "status": "passed",
+          "error": null,
+          "duration": 15,
+          "timestamp": "2026-03-16T18:15:25.981Z"
+        },
+        {
+          "name": "TC-03-007: 暂停任务-暂停超时",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:25.982Z"
+        },
+        {
+          "name": "TC-03-008: 继续任务-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 16,
+          "timestamp": "2026-03-16T18:15:25.999Z"
+        },
+        {
+          "name": "TC-03-009: 继续任务-任务不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:26.003Z"
+        },
+        {
+          "name": "TC-03-010: 继续任务-状态不允许",
+          "status": "passed",
+          "error": null,
+          "duration": 11,
+          "timestamp": "2026-03-16T18:15:26.015Z"
+        },
+        {
+          "name": "TC-03-011: 取消任务-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 12,
+          "timestamp": "2026-03-16T18:15:26.027Z"
+        },
+        {
+          "name": "TC-03-012: 取消任务-任务不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:26.031Z"
+        },
+        {
+          "name": "TC-03-013: 取消任务-状态不允许",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 11,
+          "timestamp": "2026-03-16T18:15:26.042Z"
+        },
+        {
+          "name": "TC-03-014: 重试失败任务-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 21,
+          "timestamp": "2026-03-16T18:15:26.065Z"
+        },
+        {
+          "name": "TC-03-015: 强制重试-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 18,
+          "timestamp": "2026-03-16T18:15:26.084Z"
+        }
+      ],
+      "passed": 6,
+      "failed": 8,
+      "skipped": 1,
+      "total": 15
+    },
+    {
+      "name": "结果查询 API",
+      "tests": [
+        {
+          "name": "TC-04-001: 查询汇总结果-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 15,
+          "timestamp": "2026-03-16T18:15:26.101Z"
+        },
+        {
+          "name": "TC-04-002: 查询汇总结果-任务不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 7,
+          "timestamp": "2026-03-16T18:15:26.109Z"
+        },
+        {
+          "name": "TC-04-003: 查询汇总结果-无完成项",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 20,
+          "timestamp": "2026-03-16T18:15:26.130Z"
+        },
+        {
+          "name": "TC-04-004: 查询详细结果-成功",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 31,
+          "timestamp": "2026-03-16T18:15:26.166Z"
+        },
+        {
+          "name": "TC-04-005: 查询详细结果-分页",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 51,
+          "timestamp": "2026-03-16T18:15:26.221Z"
+        },
+        {
+          "name": "TC-04-006: 对比结果-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 31,
+          "timestamp": "2026-03-16T18:15:26.257Z"
+        },
+        {
+          "name": "TC-04-007: 对比结果-任务数量不匹配",
+          "status": "passed",
+          "error": null,
+          "duration": 2,
+          "timestamp": "2026-03-16T18:15:26.260Z"
+        },
+        {
+          "name": "TC-04-008: 导出汇总-CSV",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 12,
+          "timestamp": "2026-03-16T18:15:26.282Z"
+        },
+        {
+          "name": "TC-04-009: 导出汇总-JSON",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 13,
+          "timestamp": "2026-03-16T18:15:26.296Z"
+        },
+        {
+          "name": "TC-04-010: 导出明细-CSV",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 10,
+          "timestamp": "2026-03-16T18:15:26.308Z"
+        },
+        {
+          "name": "TC-04-011: 导出明细-JSON",
+          "status": "failed",
+          "error": "Request failed with status code 404",
+          "duration": 11,
+          "timestamp": "2026-03-16T18:15:26.320Z"
+        }
+      ],
+      "passed": 2,
+      "failed": 9,
+      "skipped": 0,
+      "total": 11
+    },
+    {
+      "name": "并发与边界测试",
+      "tests": [
+        {
+          "name": "TC-05-001: 并发创建任务-限制检查",
+          "status": "passed",
+          "error": null,
+          "duration": 21,
+          "timestamp": "2026-03-16T18:15:26.342Z"
+        },
+        {
+          "name": "TC-05-002: 并发创建任务-队列顺序",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.343Z"
+        },
+        {
+          "name": "TC-05-003: 数据库连接中断-恢复",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.343Z"
+        },
+        {
+          "name": "TC-05-004: 数据库连接中断-任务状态",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.343Z"
+        },
+        {
+          "name": "TC-05-005: 服务重启-任务恢复",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.344Z"
+        },
+        {
+          "name": "TC-05-006: 服务重启-进度保持",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.344Z"
+        },
+        {
+          "name": "TC-05-007: 子任务超时-自动失败",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.344Z"
+        },
+        {
+          "name": "TC-05-008: 子任务超时-超时配置",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.344Z"
+        },
+        {
+          "name": "TC-05-009: 重试次数限制-达到上限",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.345Z"
+        },
+        {
+          "name": "TC-05-010: 重试次数限制-强制重试",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 11,
+          "timestamp": "2026-03-16T18:15:26.356Z"
+        },
+        {
+          "name": "TC-05-011: 内存使用-大任务",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.358Z"
+        },
+        {
+          "name": "TC-05-012: 内存使用-监控",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.358Z"
+        },
+        {
+          "name": "TC-05-013: 长时间运行-稳定性",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.358Z"
+        }
+      ],
+      "passed": 1,
+      "failed": 1,
+      "skipped": 11,
+      "total": 13
+    },
+    {
+      "name": "队列管理 API",
+      "tests": [
+        {
+          "name": "TC-07-001: 获取队列状态-成功",
+          "status": "failed",
+          "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+          "duration": 1,
+          "timestamp": "2026-03-16T18:15:26.359Z"
+        },
+        {
+          "name": "TC-07-002: 获取队列状态-空队列",
+          "status": "failed",
+          "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"number\"\u001b[39m\nReceived: \u001b[31m\"undefined\"\u001b[39m",
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:26.363Z"
+        },
+        {
+          "name": "TC-07-003: 获取队列状态-有任务",
+          "status": "failed",
+          "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\n\u001b[1mMatcher error\u001b[22m: \u001b[31mreceived\u001b[39m value must be a number or bigint\n\nReceived has value: \u001b[31mundefined\u001b[39m",
+          "duration": 13,
+          "timestamp": "2026-03-16T18:15:26.376Z"
+        },
+        {
+          "name": "TC-07-004: 获取队列列表-成功",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 3,
+          "timestamp": "2026-03-16T18:15:26.380Z"
+        },
+        {
+          "name": "TC-07-005: 获取队列列表-分页",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 5,
+          "timestamp": "2026-03-16T18:15:26.388Z"
+        },
+        {
+          "name": "TC-07-006: 获取队列列表-空队列",
+          "status": "failed",
+          "error": "Request failed with status code 500",
+          "duration": 6,
+          "timestamp": "2026-03-16T18:15:26.396Z"
+        },
+        {
+          "name": "TC-07-007: 取消队列任务-成功",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 20,
+          "timestamp": "2026-03-16T18:15:26.419Z"
+        },
+        {
+          "name": "TC-07-008: 取消队列任务-任务不存在",
+          "status": "passed",
+          "error": null,
+          "duration": 7,
+          "timestamp": "2026-03-16T18:15:26.433Z"
+        },
+        {
+          "name": "TC-07-009: 取消队列任务-任务已开始",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 38,
+          "timestamp": "2026-03-16T18:15:26.475Z"
+        },
+        {
+          "name": "TC-07-010: 取消队列任务-无权限",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.480Z"
+        },
+        {
+          "name": "TC-07-011: 队列满时创建任务",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.482Z"
+        },
+        {
+          "name": "TC-07-012: 队列任务执行顺序",
+          "status": "skipped",
+          "error": null,
+          "duration": 0,
+          "timestamp": "2026-03-16T18:15:26.483Z"
+        },
+        {
+          "name": "TC-07-013: 队列任务状态同步",
+          "status": "failed",
+          "error": "Request failed with status code 400",
+          "duration": 21,
+          "timestamp": "2026-03-16T18:15:26.506Z"
+        }
+      ],
+      "passed": 1,
+      "failed": 9,
+      "skipped": 3,
+      "total": 13
+    }
+  ],
+  "failedTests": [
+    {
+      "suite": "POST /backtest/batch - 创建批量任务",
+      "test": "TC-01-001: 创建批量任务-全部交易对",
+      "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+      "timestamp": "2026-03-16T18:15:20.762Z"
+    },
+    {
+      "suite": "POST /backtest/batch - 创建批量任务",
+      "test": "TC-01-002: 创建批量任务-指定交易对",
+      "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+      "timestamp": "2026-03-16T18:15:20.794Z"
+    },
+    {
+      "suite": "POST /backtest/batch - 创建批量任务",
+      "test": "TC-01-003: 创建批量任务-无效策略",
+      "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mfalse\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+      "timestamp": "2026-03-16T18:15:20.833Z"
+    },
+    {
+      "suite": "POST /backtest/batch - 创建批量任务",
+      "test": "TC-01-004: 创建批量任务-无效交易对",
+      "error": "Cannot read properties of undefined (reading 'code')",
+      "timestamp": "2026-03-16T18:15:20.860Z"
+    },
+    {
+      "suite": "POST /backtest/batch - 创建批量任务",
+      "test": "TC-01-005: 创建批量任务-超过10000个交易对",
+      "error": "Cannot read properties of undefined (reading 'code')",
+      "timestamp": "2026-03-16T18:15:20.874Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-001: 查询批量任务列表-默认参数",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:25.687Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-002: 查询批量任务列表-带状态过滤",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:25.691Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-003: 查询批量任务列表-分页",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:25.694Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-004: 查询批量任务详情-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.706Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-006: 查询子任务列表-默认",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.728Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-007: 查询子任务列表-带状态过滤",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.745Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-008: 查询子任务列表-分页",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.767Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-009: 查询子任务列表-批量任务不存在",
+      "error": "Cannot read properties of undefined (reading 'status')",
+      "timestamp": "2026-03-16T18:15:25.791Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-010: 查询子任务详情-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.804Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-012: 查询进度-成功",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:25.832Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-015: 查询历史任务-时间范围过滤",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:25.845Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-016: 查询历史任务-策略过滤",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:25.857Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-017: 查询历史任务-组合过滤",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:25.864Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-018: 查询任务统计-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.868Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-020: 导出任务结果-CSV格式",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:25.889Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-021: 导出任务结果-JSON格式",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:25.906Z"
+    },
+    {
+      "suite": "GET /backtest/batch - 查询批量任务",
+      "test": "TC-02-022: 导出任务结果-任务未完成",
+      "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoContain\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // indexOf\u001b[22m\n\nExpected value: \u001b[32m404\u001b[39m\nReceived array: \u001b[31m[202, 400]\u001b[39m",
+      "timestamp": "2026-03-16T18:15:25.920Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-001: 启动任务-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.931Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-003: 启动任务-状态不允许",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.948Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-004: 暂停任务-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.962Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-008: 继续任务-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:25.999Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-011: 取消任务-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.027Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-013: 取消任务-状态不允许",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.042Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-014: 重试失败任务-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.065Z"
+    },
+    {
+      "suite": "任务控制 API",
+      "test": "TC-03-015: 强制重试-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.084Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-001: 查询汇总结果-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.101Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-003: 查询汇总结果-无完成项",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.130Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-004: 查询详细结果-成功",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:26.166Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-005: 查询详细结果-分页",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:26.221Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-006: 对比结果-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.257Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-008: 导出汇总-CSV",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:26.282Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-009: 导出汇总-JSON",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:26.296Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-010: 导出明细-CSV",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:26.308Z"
+    },
+    {
+      "suite": "结果查询 API",
+      "test": "TC-04-011: 导出明细-JSON",
+      "error": "Request failed with status code 404",
+      "timestamp": "2026-03-16T18:15:26.320Z"
+    },
+    {
+      "suite": "并发与边界测试",
+      "test": "TC-05-010: 重试次数限制-强制重试",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.356Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-001: 获取队列状态-成功",
+      "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mundefined\u001b[39m",
+      "timestamp": "2026-03-16T18:15:26.359Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-002: 获取队列状态-空队列",
+      "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"number\"\u001b[39m\nReceived: \u001b[31m\"undefined\"\u001b[39m",
+      "timestamp": "2026-03-16T18:15:26.363Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-003: 获取队列状态-有任务",
+      "error": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\n\u001b[1mMatcher error\u001b[22m: \u001b[31mreceived\u001b[39m value must be a number or bigint\n\nReceived has value: \u001b[31mundefined\u001b[39m",
+      "timestamp": "2026-03-16T18:15:26.376Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-004: 获取队列列表-成功",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:26.380Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-005: 获取队列列表-分页",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:26.388Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-006: 获取队列列表-空队列",
+      "error": "Request failed with status code 500",
+      "timestamp": "2026-03-16T18:15:26.396Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-007: 取消队列任务-成功",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.419Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-009: 取消队列任务-任务已开始",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.475Z"
+    },
+    {
+      "suite": "队列管理 API",
+      "test": "TC-07-013: 队列任务状态同步",
+      "error": "Request failed with status code 400",
+      "timestamp": "2026-03-16T18:15:26.506Z"
+    }
+  ]
+}

@@ -290,6 +290,87 @@ export class CreateBatchBacktestDto {
 }
 ```
 
+### 4.5 回测队列管理
+
+#### 获取队列状态: GET /backtest/queue/status
+
+**说明**: 查询当前回测队列的状态，包括正在执行和等待中的任务
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "isProcessing": true,
+    "currentTask": {
+      "id": 1001,
+      "type": "batch",  // batch 或 single
+      "progress": 45,
+      "startedAt": "2024-03-15T10:30:00Z"
+    },
+    "queueLength": 5,
+    "maxQueueLength": 100,
+    "estimatedWaitTime": 1800  // 预估等待时间（秒）
+  }
+}
+```
+
+#### 获取队列列表: GET /backtest/queue
+
+**说明**: 获取队列中等待执行的任务列表
+
+**查询参数**:
+- `page`: 页码，默认 1
+- `limit`: 每页数量，默认 20
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": 1002,
+        "type": "batch",
+        "strategyId": 1,
+        "totalPairs": 100,
+        "status": "queued",
+        "queuedAt": "2024-03-15T10:35:00Z",
+        "estimatedStartTime": "2024-03-15T11:00:00Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 5
+    }
+  }
+}
+```
+
+#### 取消队列中的任务: DELETE /backtest/queue/:taskId
+
+**说明**: 取消队列中等待执行的任务（只能取消未开始的任务）
+
+**成功响应**:
+```json
+{
+  "success": true,
+  "message": "任务已从队列中移除"
+}
+```
+
+**错误响应（任务已开始执行）**:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "TASK_ALREADY_STARTED",
+    "message": "任务已开始执行，无法从队列移除，请使用取消任务接口"
+  }
+}
+```
+
 ### 4.4 批量回测结果汇总
 
 #### API: GET /backtest/batch/:batchId/summary
@@ -500,11 +581,13 @@ export enum BatchBacktestItemStatus {
 | 重试功能 | 能重试失败的任务 | P1 |
 | 重试次数限制 | 每个子任务最大重试3次 | P1 |
 | 强制重试 | 提供强制重试接口 | P2 |
-| 交易对数量限制 | 最大支持500个交易对 | P0 |
+| 交易对数量限制 | 最大支持10000个交易对 | P0 |
 | 暂停超时 | 暂停超时5分钟后强制取消 | P1 |
 | 子任务超时 | 单个子任务执行超时30分钟 | P1 |
 | 结果汇总 | 能正确生成汇总统计 | P0 |
 | 结果详情 | 能查看每个交易对的详细结果 | P0 |
+| 回测队列 | 所有回测请求进入队列，串行执行 | P0 |
+| 队列查询 | 能查看队列状态和等待任务 | P1 |
 
 ### 7.2 非功能验收
 
@@ -541,21 +624,26 @@ export enum BatchBacktestItemStatus {
 |--------|------|------------|
 | STRATEGY_NOT_FOUND | 策略不存在 | 400 |
 | PAIR_NOT_FOUND | 交易对不存在 | 400 |
-| PAIR_LIMIT_EXCEEDED | 交易对数量超过上限（500） | 400 |
+| PAIR_LIMIT_EXCEEDED | 交易对数量超过上限（10000） | 400 |
 | BATCH_NOT_FOUND | 批量任务不存在 | 404 |
 | INVALID_STATUS | 状态冲突，操作不被允许 | 400 |
 | NO_RETRYABLE_TASKS | 没有可重试的失败任务 | 400 |
 | MAX_RETRIES_REACHED | 子任务已达到最大重试次数 | 400 |
+| QUEUE_FULL | 回测队列已满（100个任务） | 429 |
+| TASK_ALREADY_STARTED | 任务已开始执行，无法从队列移除 | 400 |
+| TASK_NOT_IN_QUEUE | 任务不在队列中 | 404 |
 
 ### A.2 系统约束
 
 | 约束项 | 限制值 | 说明 |
 |--------|--------|------|
-| 交易对数量上限 | 500 | 单次批量任务最大交易对数 |
+| 交易对数量上限 | 10000 | 单次批量任务最大交易对数 |
 | 暂停超时时间 | 5分钟 | 暂停等待的超时时间 |
 | 子任务重试次数 | 3次 | 自动重试的最大次数 |
 | 子任务执行超时 | 30分钟 | 单个子任务执行超时时间 |
 | 进度轮询频率 | 3秒 | 前端建议的轮询间隔 |
+| 回测队列最大长度 | 100 | 队列中最大等待任务数 |
+| 队列执行方式 | 串行 | 一次只执行一个回测任务 |
 
 ### A.3 依赖服务中断处理
 
@@ -578,3 +666,4 @@ export enum BatchBacktestItemStatus {
 |------|------|----------|------|
 | v1.0 | 2026-03-15 | 初始版本 | PM |
 | v1.1 | 2026-03-15 | 根据QA反馈更新：新增交易对数量限制、暂停超时、重试次数限制、子任务超时、依赖服务中断处理等 | PM |
+| v1.2 | 2026-03-15 | 提升交易对数量上限至10000，新增回测队列功能，所有回测任务串行执行 | PM |

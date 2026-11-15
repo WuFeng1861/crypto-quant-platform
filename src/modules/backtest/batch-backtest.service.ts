@@ -1,4 +1,13 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import {
+  BusinessException,
+  StrategyNotFoundException,
+  PairNotFoundException,
+  PairLimitExceededException,
+  QueueFullException,
+  BatchNotFoundException,
+  InvalidStatusException,
+} from '../common/exceptions/business.exception';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { BatchBacktest, BatchBacktestStatus } from './entities/batch-backtest.entity';
@@ -12,10 +21,22 @@ import { StrategiesService } from '../strategies/strategies.service';
 const MAX_RETRIES = 3;
 const PAUSE_TIMEOUT_MS = 5 * 60 * 1000; // 5分钟
 const ITEM_TIMEOUT_MS = 30 * 60 * 1000; // 30分钟
+const MAX_PAIR_LIMIT = 10000; // 交易对数量上限
+const MAX_QUEUE_LENGTH = 100; // 队列最大长度
+
+interface QueueItem {
+  id: number;
+  type: 'batch' | 'single';
+  data: any;
+  queuedAt: Date;
+}
 
 @Injectable()
 export class BatchBacktestService {
   private activeExecutions: Map<number, boolean> = new Map();
+  private backtestQueue: QueueItem[] = [];
+  private isProcessingQueue: boolean = false;
+  private currentTask: QueueItem | null = null;
 
   constructor(
     @InjectRepository(BatchBacktest)
@@ -32,10 +53,7 @@ export class BatchBacktestService {
     // 验证策略是否存在
     const strategy = await this.strategiesService.findOne(dto.strategyId);
     if (!strategy) {
-      throw new BadRequestException({
-        code: 'STRATEGY_NOT_FOUND',
-        message: `策略不存在: ${dto.strategyId}`
-      });
+      throw new StrategyNotFoundException(dto.strategyId);
     }
 
     // 获取交易对列表
@@ -49,11 +67,8 @@ export class BatchBacktestService {
     }
 
     // 验证交易对数量限制
-    if (pairIds.length > 500) {
-      throw new BadRequestException({
-        code: 'PAIR_LIMIT_EXCEEDED',
-        message: `交易对数量超过上限（最大 500 个），当前数量：${pairIds.length}`
-      });
+    if (pairIds.length > MAX_PAIR_LIMIT) {
+      throw new PairLimitExceededException(pairIds.length, MAX_PAIR_LIMIT);
     }
 
     // 验证交易对是否存在
@@ -61,10 +76,12 @@ export class BatchBacktestService {
     if (existingPairs.length !== pairIds.length) {
       const existingIds = existingPairs.map(p => p.id);
       const invalidIds = pairIds.filter(id => !existingIds.includes(id));
-      throw new BadRequestException({
-        code: 'PAIR_NOT_FOUND',
-        message: `交易对不存在: ${invalidIds.join(', ')}`
-      });
+      throw new PairNotFoundException(invalidIds);
+    }
+
+    // 检查队列是否已满
+    if (this.backtestQueue.length >= MAX_QUEUE_LENGTH) {
+      throw new QueueFullException(MAX_QUEUE_LENGTH);
     }
 
     // 创建批量任务
@@ -76,10 +93,11 @@ export class BatchBacktestService {
       initialCapital: dto.initialCapital,
       earlyStopThreshold: dto.earlyStopThreshold,
       positionDivision: dto.positionDivision,
-      status: BatchBacktestStatus.PENDING,
+      status: BatchBacktestStatus.QUEUED,
       totalPairs: pairIds.length,
       completedPairs: 0,
       failedPairs: 0,
+      progress: 0,
     });
 
     const savedBatch = await this.batchBacktestRepository.save(batchBacktest);
@@ -95,6 +113,17 @@ export class BatchBacktestService {
     );
 
     await this.batchBacktestItemRepository.save(items);
+
+    // 添加到队列
+    this.backtestQueue.push({
+      id: savedBatch.id,
+      type: 'batch',
+      data: savedBatch,
+      queuedAt: new Date(),
+    });
+
+    // 触发队列处理
+    this.processQueue();
 
     return savedBatch;
   }
@@ -113,10 +142,7 @@ export class BatchBacktestService {
   async findOne(id: number): Promise<BatchBacktest> {
     const batch = await this.batchBacktestRepository.findOne({ where: { id } });
     if (!batch) {
-      throw new NotFoundException({
-        code: 'BATCH_NOT_FOUND',
-        message: `批量任务不存在: ${id}`
-      });
+      throw new BatchNotFoundException(id);
     }
     return batch;
   }
@@ -141,10 +167,7 @@ export class BatchBacktestService {
     const batch = await this.findOne(id);
 
     if (batch.status !== BatchBacktestStatus.PENDING && batch.status !== BatchBacktestStatus.PAUSED) {
-      throw new BadRequestException({
-        code: 'INVALID_STATUS',
-        message: `任务状态不允许启动，当前状态: ${batch.status}`
-      });
+      throw new InvalidStatusException(batch.status, 'PENDING or PAUSED');
     }
 
     await this.batchBacktestRepository.update(id, {
@@ -166,10 +189,7 @@ export class BatchBacktestService {
     const batch = await this.findOne(id);
 
     if (batch.status !== BatchBacktestStatus.RUNNING) {
-      throw new BadRequestException({
-        code: 'INVALID_STATUS',
-        message: `任务未在执行中，当前状态: ${batch.status}`
-      });
+      throw new InvalidStatusException(batch.status, 'RUNNING');
     }
 
     await this.batchBacktestRepository.update(id, {
@@ -184,10 +204,7 @@ export class BatchBacktestService {
     const batch = await this.findOne(id);
 
     if (batch.status !== BatchBacktestStatus.PAUSED) {
-      throw new BadRequestException({
-        code: 'INVALID_STATUS',
-        message: `任务未在暂停状态，当前状态: ${batch.status}`
-      });
+      throw new InvalidStatusException(batch.status, 'PAUSED');
     }
 
     await this.batchBacktestRepository.update(id, {
@@ -208,10 +225,7 @@ export class BatchBacktestService {
     const batch = await this.findOne(id);
 
     if (batch.status === BatchBacktestStatus.COMPLETED || batch.status === BatchBacktestStatus.CANCELLED) {
-      throw new BadRequestException({
-        code: 'INVALID_STATUS',
-        message: `任务已完成或已取消，无法取消，当前状态: ${batch.status}`
-      });
+      throw new BusinessException('INVALID_STATUS', `任务已完成或已取消，无法取消，当前状态: ${batch.status}`);
     }
 
     await this.batchBacktestRepository.update(id, {
@@ -244,24 +258,14 @@ export class BatchBacktestService {
     const failedItems = await this.batchBacktestItemRepository.find({ where });
 
     if (failedItems.length === 0) {
-      throw new BadRequestException({
-        code: 'NO_RETRYABLE_TASKS',
-        message: '没有可重试的失败任务'
-      });
+      throw new BusinessException('NO_RETRYABLE_TASKS', '没有可重试的失败任务');
     }
 
     // 过滤掉已达到重试次数上限的任务
     const retryableItems = failedItems.filter(item => item.retries < MAX_RETRIES);
 
     if (retryableItems.length === 0) {
-      throw new BadRequestException({
-        code: 'MAX_RETRIES_REACHED',
-        message: '子任务已达到最大重试次数（3次）',
-        details: {
-          pairIds: failedItems.map(item => item.pairId),
-          retries: MAX_RETRIES
-        }
-      });
+      throw new BusinessException('MAX_RETRIES_REACHED', '子任务已达到最大重试次数（3次）');
     }
 
     // 重置可重试任务的状态
@@ -290,10 +294,7 @@ export class BatchBacktestService {
     const batch = await this.findOne(id);
 
     if (!dto.pairIds || dto.pairIds.length === 0) {
-      throw new BadRequestException({
-        code: 'INVALID_PARAMS',
-        message: '请指定要强制重试的交易对'
-      });
+      throw new BusinessException('INVALID_PARAMS', '请指定要强制重试的交易对');
     }
 
     // 获取指定的子任务
@@ -305,10 +306,7 @@ export class BatchBacktestService {
     });
 
     if (items.length === 0) {
-      throw new BadRequestException({
-        code: 'ITEMS_NOT_FOUND',
-        message: '指定的子任务不存在'
-      });
+      throw new BusinessException('ITEMS_NOT_FOUND', '指定的子任务不存在');
     }
 
     // 重置任务状态（不增加重试次数）
@@ -375,6 +373,9 @@ export class BatchBacktestService {
     }
     this.activeExecutions.set(batchId, true);
 
+    // 记录没有价格数据的交易对
+    const noDataPairs: number[] = [];
+
     try {
       const batch = await this.findOne(batchId);
 
@@ -418,7 +419,12 @@ export class BatchBacktestService {
         }
 
         // 执行子任务
-        await this.executeItem(batch, item);
+        await this.executeItem(batch, item, noDataPairs);
+      }
+
+      // 打印没有价格数据的交易对汇总
+      if (noDataPairs.length > 0) {
+        console.log(`[批量回测] 任务 ${batchId} 完成，以下交易对没有价格数据被跳过: ${noDataPairs.join(', ')}`);
       }
 
       // 更新批量任务状态为完成
@@ -445,7 +451,11 @@ export class BatchBacktestService {
     }
   }
 
-  private async executeItem(batch: BatchBacktest, item: BatchBacktestItem): Promise<void> {
+  private async executeItem(
+    batch: BatchBacktest,
+    item: BatchBacktestItem,
+    noDataPairs?: number[],
+  ): Promise<void> {
     try {
       // 更新子任务状态为执行中
       await this.batchBacktestItemRepository.update(item.id, {
@@ -477,7 +487,28 @@ export class BatchBacktestService {
         // 更新完成计数
         await this.batchBacktestRepository.increment({ id: batch.id }, 'completedPairs', 1);
       } else {
-        // 执行失败
+        // 检查是否是因为没有价格数据
+        const errorMessage = result.message || '';
+        if (errorMessage.includes('No price data found')) {
+          console.log(`[批量回测] 交易对 ${item.pairId} 在指定时间段没有价格数据，跳过`);
+
+          // 记录到无数据列表
+          if (noDataPairs) {
+            noDataPairs.push(item.pairId);
+          }
+
+          // 标记为跳过（使用特殊状态或标记）
+          await this.batchBacktestItemRepository.update(item.id, {
+            status: BatchBacktestItemStatus.FAILED,
+            errorMessage: 'SKIP_NO_DATA: 指定时间段没有价格数据',
+            completedAt: new Date(),
+          });
+
+          // 不增加失败计数，因为这不是真正的失败
+          return;
+        }
+
+        // 其他执行失败
         await this.batchBacktestItemRepository.update(item.id, {
           status: BatchBacktestItemStatus.FAILED,
           errorMessage: result.message || '回测执行失败',
@@ -487,9 +518,29 @@ export class BatchBacktestService {
         // 更新失败计数
         await this.batchBacktestRepository.increment({ id: batch.id }, 'failedPairs', 1);
       }
-
     } catch (error) {
       console.error(`子任务 ${item.id} 执行失败:`, error);
+
+      // 检查是否是因为没有价格数据
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('No price data found')) {
+        console.log(`[批量回测] 交易对 ${item.pairId} 在指定时间段没有价格数据，跳过`);
+
+        // 记录到无数据列表
+        if (noDataPairs) {
+          noDataPairs.push(item.pairId);
+        }
+
+        // 标记为跳过
+        await this.batchBacktestItemRepository.update(item.id, {
+          status: BatchBacktestItemStatus.FAILED,
+          errorMessage: 'SKIP_NO_DATA: 指定时间段没有价格数据',
+          completedAt: new Date(),
+        });
+
+        // 不增加失败计数
+        return;
+      }
 
       await this.batchBacktestItemRepository.update(item.id, {
         status: BatchBacktestItemStatus.FAILED,
@@ -499,5 +550,152 @@ export class BatchBacktestService {
 
       await this.batchBacktestRepository.increment({ id: batch.id }, 'failedPairs', 1);
     }
+  }
+
+  // ==================== 队列管理方法 ====================
+
+  /**
+   * 处理队列
+   */
+  private async processQueue(): Promise<void> {
+    if (this.isProcessingQueue || this.backtestQueue.length === 0) {
+      return;
+    }
+
+    this.isProcessingQueue = true;
+
+    try {
+      while (this.backtestQueue.length > 0) {
+        const queueItem = this.backtestQueue.shift();
+        if (!queueItem) continue;
+
+        this.currentTask = queueItem;
+
+        try {
+          if (queueItem.type === 'batch') {
+            // 更新任务状态为 pending
+            await this.batchBacktestRepository.update(queueItem.id, {
+              status: BatchBacktestStatus.PENDING,
+            });
+
+            // 启动批量回测
+            await this.startBatchBacktest(queueItem.id);
+          }
+        } catch (error) {
+          console.error(`处理队列任务 ${queueItem.id} 失败:`, error);
+        }
+
+        // 等待当前任务完成
+        await this.waitForTaskCompletion(queueItem.id);
+        this.currentTask = null;
+      }
+    } finally {
+      this.isProcessingQueue = false;
+    }
+  }
+
+  /**
+   * 等待任务完成
+   */
+  private async waitForTaskCompletion(batchId: number): Promise<void> {
+    const maxWaitTime = 24 * 60 * 60 * 1000; // 最大等待24小时
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitTime) {
+      const batch = await this.batchBacktestRepository.findOne({ where: { id: batchId } });
+
+      if (!batch || ['completed', 'cancelled', 'failed'].includes(batch.status)) {
+        return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  /**
+   * 获取队列状态
+   */
+  async getQueueStatus(): Promise<any> {
+    const queueLength = this.backtestQueue.length;
+    const isProcessing = this.isProcessingQueue;
+
+    // 计算预估等待时间（基于平均执行时间）
+    let estimatedWaitTime = 0;
+    if (isProcessing && this.currentTask) {
+      // 当前任务剩余时间 + 队列中任务平均时间
+      estimatedWaitTime = queueLength * 300; // 假设每个任务平均5分钟
+    }
+
+    return {
+      isProcessing,
+      currentTask: this.currentTask ? {
+        id: this.currentTask.id,
+        type: this.currentTask.type,
+        startedAt: new Date(),
+      } : null,
+      queueLength,
+      maxQueueLength: MAX_QUEUE_LENGTH,
+      estimatedWaitTime,
+    };
+  }
+
+  /**
+   * 获取队列列表
+   */
+  async getQueueList(page: number = 1, limit: number = 20): Promise<any> {
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const items = this.backtestQueue.slice(start, end);
+
+    // 获取任务详情
+    const detailedItems = await Promise.all(
+      items.map(async (item, index) => {
+        const batch = await this.batchBacktestRepository.findOne({
+          where: { id: item.id },
+        });
+
+        return {
+          id: item.id,
+          type: item.type,
+          strategyId: batch?.strategyId,
+          totalPairs: batch?.totalPairs,
+          status: 'queued',
+          queuedAt: item.queuedAt,
+          estimatedStartTime: new Date(Date.now() + index * 300000), // 预估开始时间
+        };
+      })
+    );
+
+    return {
+      items: detailedItems,
+      pagination: {
+        page,
+        limit,
+        total: this.backtestQueue.length,
+      },
+    };
+  }
+
+  /**
+   * 取消队列中的任务
+   */
+  async cancelQueueTask(taskId: number): Promise<void> {
+    // 检查是否是当前正在执行的任务
+    if (this.currentTask && this.currentTask.id === taskId) {
+      throw new BusinessException('TASK_ALREADY_STARTED', '任务已开始执行，无法从队列移除，请使用取消任务接口');
+    }
+
+    // 从队列中移除
+    const index = this.backtestQueue.findIndex(item => item.id === taskId);
+    if (index === -1) {
+      throw new BatchNotFoundException(taskId);
+    }
+
+    this.backtestQueue.splice(index, 1);
+
+    // 更新任务状态为取消
+    await this.batchBacktestRepository.update(taskId, {
+      status: BatchBacktestStatus.CANCELLED,
+    });
   }
 }

@@ -15,23 +15,34 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse();
-    
+
     let message = '操作失败';
-    if (typeof exceptionResponse === 'object' && exceptionResponse !== null && 'message' in exceptionResponse) {
-      const exceptionMessage = exceptionResponse['message'];
-      message = Array.isArray(exceptionMessage) 
-        ? exceptionMessage.join(', ') 
-        : String(exceptionMessage);
+    let errorCode = 'UNKNOWN_ERROR';
+
+    if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      if ('message' in exceptionResponse) {
+        const exceptionMessage = exceptionResponse['message'];
+        message = Array.isArray(exceptionMessage)
+          ? exceptionMessage.join(', ')
+          : String(exceptionMessage);
+      }
+      if ('error' in exceptionResponse) {
+        errorCode = String(exceptionResponse['error']);
+      }
     } else if (typeof exceptionResponse === 'string') {
       message = exceptionResponse;
     }
 
+    // 统一返回格式，与正常响应保持一致
     response.status(status).json({
-      code: status,
-      message,
+      success: false,
       data: null,
-      timestamp: Date.now(),
-      path: request.url,
+      message,
+      error: {
+        code: errorCode,
+        status,
+        path: request.url,
+      },
     });
   }
 }
